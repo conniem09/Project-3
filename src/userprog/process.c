@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "lib/string.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -30,14 +31,20 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  char *token;
+  char *save_ptr;
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-
+  strlcpy (fn_copy, file_name, PGSIZE);   
+  
+  //<chiahua, connie>
+  token = strtok_r (fn_copy, " ", &save_ptr);
+  //</chiahua, connie>
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -88,7 +95,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  //<sabrina>
+  while(1){
+    
+  }
+  //</sabrina>
 }
 
 /* Free the current process's resources. */
@@ -195,7 +206,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char *file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -302,9 +313,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
-
+  
+  hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
@@ -427,20 +440,58 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, char *file_name) 
 {
   uint8_t *kpage;
   bool success = false;
-
+  
+  //<connie>
+  char *fn_copy;
+  char *token;
+  char *save_ptr;
+  int argc;
+  char *dataAddresses[32];
+  int index;
+  char *my_esp = *esp;
+  
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
+  fn_copy = palloc_get_page (0);
+  if (fn_copy == NULL)
+    return TID_ERROR;
+  strlcpy (fn_copy, file_name, PGSIZE);
+  //</connie>   
+  
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        my_esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
+    
+  //<chiahua, connie>
+  //iterate through the token returned by strtok and add each string to
+  //to the argv variable
+  argc=0;
+  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL; 
+       token = strtok_r (NULL, " ", &save_ptr))
+  {
+    //pushes data to stack and saves the data addresses in stack to array
+    dataAddresses[argc] = strlcpy((char*)((int)my_esp - (strlen(token) + 1)), token, 128);
+    argc++;
+  }
+  //iterate through data addresses backwards and push it onto the stack. 
+  for (index = argc ;index >= 0; index--)
+  {
+    my_esp-- = dataAddresses[index];
+  }
+  
+  *esp = my_esp;
+  //</chiahua, connie>
+  
   return success;
 }
 

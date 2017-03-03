@@ -19,6 +19,8 @@
 #include "threads/vaddr.h"
 #include "lib/string.h"
 
+#define ALIGN 4 /* align to multiple of this number */
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -61,8 +63,6 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  printf(file_name_);
-  printf(" in Start\n");
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -236,10 +236,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   fileArg0[copyIndex] = '\0';
   //</chiahua>
-    printf(file_name);
-  printf(" in Load\n");
-      printf(fileArg0);
-  printf(" Arg0 in Load\n");
+
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -469,6 +466,7 @@ setup_stack (void **esp,const char *file_name)
   int index;
   char *my_esp = *esp;
   int x;
+  char *temp_esp;
   
   //<chiahua>
   uint8_t wordAlign = 0;
@@ -541,12 +539,32 @@ setup_stack (void **esp,const char *file_name)
     }
   }
   //</cris>
-  /*
-  printf(file_name);
-  printf("\n\n"); 
- */ 
- 
-  //*(my_esp--) = wordAlign;
+  //<sabrina>  
+  dataAddresses[argc] = NULL;
+  
+  //align addresses to multiples of 4
+  while((int)my_esp % ALIGN){
+    my_esp--;
+    *my_esp = NULL;
+  }
+  //adding address to stack 
+  for(index = argc; index >= 0; index--){
+    my_esp -= sizeof(dataAddresses[index]);
+    //cast my_esp to an int* to expand to a 4 byte number 
+    *((int*)my_esp) = dataAddresses[index];
+  }
+  
+  //push argv
+  temp_esp = my_esp;
+  my_esp -=  sizeof(temp_esp);
+  *((int*)my_esp) = temp_esp; 
+  //push argc
+  my_esp -=  sizeof(int);
+  *((int*)my_esp) = argc; 
+  //push return address
+  my_esp -=  sizeof(void*);
+  *((int*)my_esp) = NULL; 
+  //</sabrina>
   //*(my_esp--) = (char*) NULL;
   
   //iterate through data addresses backwards and push it onto the stack.

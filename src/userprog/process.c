@@ -33,20 +33,12 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-  //char *token;
-  //char *save_ptr;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
-    //<chiahua, connie>
- // token = strtok_r (fn_copy, " ", &save_ptr);
-  //</chiahua, connie>
-  
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -228,15 +220,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+
   //<chiahua>
   char fileArg0[128];
   int copyIndex;
-  for (copyIndex = 0; *(file_name+copyIndex) != ' '; copyIndex++) {
+  for (copyIndex = 0; *(file_name+copyIndex) != ' '; copyIndex++) 
+  {
     fileArg0[copyIndex] = *(file_name + copyIndex);
   }
   fileArg0[copyIndex] = '\0';
   //</chiahua>
-
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -245,10 +238,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (fileArg0);//file_name);
+  file = filesys_open (fileArg0);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", fileArg0);//file_name);
+      printf ("load: %s: open failed\n", fileArg0);
       goto done; 
     }
 
@@ -261,7 +254,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", fileArg0);//file_name);
+      printf ("load: %s: error loading executable\n", fileArg0);
       goto done; 
     }
 
@@ -327,8 +320,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp, file_name))
     goto done;
-  
-  //hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
   
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -456,7 +447,6 @@ setup_stack (void **esp,const char *file_name)
 {
   uint8_t *kpage;
   bool success = false;
-  
   //<connie>
   char *fn_copy;
   char *token = NULL;
@@ -470,26 +460,16 @@ setup_stack (void **esp,const char *file_name)
   
   //<chiahua>
   uint8_t wordAlign = 0;
-  /*
-  char cmdline[strlen(file_name)+1];
-  int index2=0;
-  while (*(file_name+index2) != '\0') {
-    cmdline[index2] = *(file_name+index2);
-    index2++;
-  }*/
-  
-  //strlcpy(fn_copy, file_name, strlen(file_name)+1);
-  //fn_copy=fn_copy;
   //</chiahua>
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
   //</connie>  
+
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -499,89 +479,69 @@ setup_stack (void **esp,const char *file_name)
       else
         palloc_free_page (kpage);
     }
-    
-  //<chiahua, connie>
-  //iterate through the token returned by strtok and add each string to
-  //to the argv variable
-  
-  
-  
-  /*
-  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL; 
-       token = strtok_r (NULL, " ", &save_ptr))
-  {
-    //pushes data to stack and saves the data addresses in stack to array
-    my_esp = (my_esp - (strlen(token)+1));
-    strlcpy(my_esp, token, strlen(token)+1);
-
-    dataAddresses[argc] = my_esp;
-    
-    argc++;
-  }
-  */
+ 
   //<chiahua, cris>
+  //move the stack pointer and copy the data into the stack
   my_esp = my_esp - (strlen (fn_copy)+1);
-  strlcpy(my_esp, fn_copy, strlen (fn_copy)+1);
+  strlcpy (my_esp, fn_copy, strlen (fn_copy)+1);
   //</chiahua, cris>
+
   //<cris>
+  //counting the number of arguments
+  //null terminating the arguments
+  //storing the addresses of the data
   argc = 1;
   dataAddresses[0] = my_esp;
-  for(x = 0; x + my_esp < PHYS_BASE; x++)
+  for (x = 0; x + my_esp < PHYS_BASE; x++)
   {
-    if(*(x + my_esp) == ' ')
+    if (*(x + my_esp) == ' ')
     {
       argc++;
       *(x + my_esp) = NULL;
-      while(*(x + my_esp + 1) == ' '){
+      while (*(x + my_esp + 1) == ' ')
+      {
         x++;
       }
       dataAddresses[argc - 1] = x + my_esp + 1;
     }
   }
   //</cris>
+
   //<sabrina>  
   dataAddresses[argc] = NULL;
   
   //align addresses to multiples of 4
-  while((int)my_esp % ALIGN){
+  while ((int) my_esp % ALIGN)
+  {
     my_esp--;
     *my_esp = NULL;
   }
+
   //adding address to stack 
-  for(index = argc; index >= 0; index--){
-    my_esp -= sizeof(dataAddresses[index]);
+  for (index = argc; index >= 0; index--)
+  {
+    my_esp -= sizeof (dataAddresses[index]);
     //cast my_esp to an int* to expand to a 4 byte number 
-    *((int*)my_esp) = dataAddresses[index];
+    *((int*) my_esp) = dataAddresses[index];
   }
   
   //push argv
   temp_esp = my_esp;
-  my_esp -=  sizeof(temp_esp);
-  *((int*)my_esp) = temp_esp; 
+  my_esp -=  sizeof (temp_esp);
+  *((int*) my_esp) = temp_esp; 
+
   //push argc
-  my_esp -=  sizeof(int);
-  *((int*)my_esp) = argc; 
+  my_esp -=  sizeof (int);
+  *((int*) my_esp) = argc;
+
   //push return address
-  my_esp -=  sizeof(void*);
-  *((int*)my_esp) = NULL; 
+  my_esp -=  sizeof (void*);
+  *((int*) my_esp) = NULL; 
   //</sabrina>
-  //*(my_esp--) = (char*) NULL;
   
-  //iterate through data addresses backwards and push it onto the stack.
-  /* 
-  for (index = argc; index >= 0; index--)
-  {
-    my_esp--;
-    *(my_esp) = dataAddresses[index];
-  }
-  *(my_esp--) = argc;
-  *(my_esp--) = 0;
-  
-  */
   *esp = my_esp;
   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
   
-  //</chiahua, connie>
   return success;
 }
 

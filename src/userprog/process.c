@@ -220,15 +220,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  int numLeadingSpaces = 0;
 
   //<chiahua>
   char fileArg0[128];
   int copyIndex;
-  for (copyIndex = 0; *(file_name+copyIndex) != ' '; copyIndex++) 
+  while (*(file_name+copyIndex) == ' ')
   {
-    fileArg0[copyIndex] = *(file_name + copyIndex);
+    copyIndex++;
   }
-  fileArg0[copyIndex] = '\0';
+  numLeadingSpaces = copyIndex;
+  for (copyIndex; *(file_name+copyIndex) != ' '; copyIndex++) 
+  {
+    fileArg0[copyIndex-numLeadingSpaces] = *(file_name + copyIndex);
+  }
+  fileArg0[copyIndex-numLeadingSpaces] = '\0';
   //</chiahua>
 
   /* Allocate and activate page directory. */
@@ -490,9 +496,14 @@ setup_stack (void **esp,const char *file_name)
   //counting the number of arguments
   //null terminating the arguments
   //storing the addresses of the data
+  x = 0;
+  while (*(x + my_esp) == ' ')
+  {
+    x++;
+  }
   argc = 1;
   dataAddresses[0] = my_esp;
-  for (x = 0; x + my_esp < PHYS_BASE; x++)
+  for (x=x; x + my_esp < PHYS_BASE; x++)
   {
     if (*(x + my_esp) == ' ')
     {
@@ -541,7 +552,7 @@ setup_stack (void **esp,const char *file_name)
   
   *esp = my_esp;
   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
-  
+    
   return success;
 }
 

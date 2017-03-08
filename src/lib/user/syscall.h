@@ -20,19 +20,19 @@ typedef int mapid_t;
 #define EXIT_FAILURE 1          /* Unsuccessful execution. */
 
 /* Projects 2 and later. */
-void halt (void) NO_RETURN;
-void exit (int status) NO_RETURN;
-pid_t exec (const char *file);
-int wait (pid_t);
-bool create (const char *file, unsigned initial_size);
-bool remove (const char *file);
-int open (const char *file);
-int filesize (int fd);
-int read (int fd, void *buffer, unsigned length);
-int write (int fd, const void *buffer, unsigned length);
-void seek (int fd, unsigned position);
-unsigned tell (int fd);
-void close (int fd);
+  void halt (void) NO_RETURN;
+  void exit (int status) NO_RETURN;
+  pid_t exec (const char *file);
+  int wait (pid_t);
+  bool create (const char *file, unsigned initial_size);
+  bool remove (const char *file);
+  int open (const char *file);
+  int filesize (int fd);
+  int read (int fd, void *buffer, unsigned length);
+  int write (int fd, const void *buffer, unsigned length);
+  void seek (int fd, unsigned position);
+  unsigned tell (int fd);
+  void close (int fd);
 
 /* Project 3 and optionally project 4. */
 mapid_t mmap (int fd, void *addr);

@@ -550,7 +550,7 @@ setup_stack (void **esp,const char *file_name)
   //</sabrina>
   
   *esp = my_esp;
-  hex_dump((int) *esp, *esp, PHYS_BASE-*esp, 1);
+  //hex_dump((int) *esp, *esp, PHYS_BASE-*esp, 1);
     
   return success;
 }

@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
+//int write; 
 
 void
 syscall_init (void) 
@@ -14,26 +15,81 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
-  //<cris>
-  int *stack_pointer = f->esp;
+  //<cris, connie>
+  void *stack_pointer =  f->esp;
   
-  if (*stack_pointer != NULL)
+  int syscall_number = *(int*) stack_pointer;
+  printf("%d\n", syscall_number);
+  printf("%d\n", SYS_HALT);
+  
+  switch (syscall_number)
   {
-    if (*stack_pointer >= PHYS_BASE)
-    {
-      printf ("Kernel Address Illegal SysCall!\n");
-      thread_exit ();
-    } 
+    case SYS_HALT:
+      printf("Halt\n");
+      shutdown_power_off();
+      break;
+    case SYS_EXIT:
+      printf("Exit\n");
+      break;
+    case SYS_EXEC:
+      printf("Exec\n");
+      break;
+    case SYS_WAIT:
+      printf("wait\n");
+      break;
+    case SYS_CREATE:
+      printf("Create\n");
+      break;
+    case SYS_REMOVE:
+      printf("Remove\n");
+      break;
+    case SYS_OPEN:
+      printf("Open\n");
+     
+      break;
+    case SYS_FILESIZE:
+      printf("Filesize\n");
+      break;
+    case SYS_READ:
+      printf("Read\n");
+      break;
+    case SYS_WRITE:
+      printf("Write\n");
+      unsigned length;
+      char *string;
+      int x;
+      
+      stack_pointer += sizeof (int);
+      //stack_pointer += sizeof (int);
+      string = (char *) stack_pointer;
+      stack_pointer += sizeof (const void *);
+      length = (unsigned) stack_pointer;
+      printf("%s\n", *string);
+      /* for(x = 0; x <= length; x++)
+      {
+       printf("%c\n", *string);
+       string++;
+      } */
+      break;
+    case SYS_SEEK:
+      printf("Seek\n");
+      break;
+    case SYS_TELL:
+      printf("Tell\n");
+      break;
+    case SYS_CLOSE:
+      printf("Close\n");
+      break;
+    //Invalid system call  
+    default:              
+      printf("I cannot believe you've done this :( \n");
+    //exit(-1);
   }
-  else
-  {
-  //kill
-  printf ("Null Pointer SysCall!\n");
-  thread_exit ();
-  }
-  //</cris>
+  //</cris>  
+  
   printf ("Successful system call!\n");
+  
   thread_exit ();
 }

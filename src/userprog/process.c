@@ -224,13 +224,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //<chiahua>
   char fileArg0[128];
-  int copyIndex;
+  int copyIndex = 0;
   while (*(file_name+copyIndex) == ' ')
   {
     copyIndex++;
   }
   numLeadingSpaces = copyIndex;
-  for (copyIndex; *(file_name+copyIndex) != ' '; copyIndex++) 
+  for ( ; *(file_name+copyIndex) != ' ' 
+       && *(file_name+copyIndex) != '\0'; copyIndex++) 
   {
     fileArg0[copyIndex-numLeadingSpaces] = *(file_name + copyIndex);
   }
@@ -455,8 +456,6 @@ setup_stack (void **esp,const char *file_name)
   bool success = false;
   //<connie>
   char *fn_copy;
-  char *token = NULL;
-  char *save_ptr;
   int argc;
   char *dataAddresses[32];
   int index;
@@ -464,9 +463,6 @@ setup_stack (void **esp,const char *file_name)
   int x;
   char *temp_esp;
   
-  //<chiahua>
-  uint8_t wordAlign = 0;
-  //</chiahua>
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -503,16 +499,19 @@ setup_stack (void **esp,const char *file_name)
   }
   argc = 1;
   dataAddresses[0] = my_esp;
-  for (x=x; x + my_esp < PHYS_BASE; x++)
+  for ( ; (void*) (x + my_esp) < PHYS_BASE; x++)
   {
     if (*(x + my_esp) == ' ')
     {
-      argc++;
-      *(x + my_esp) = NULL;
+      *(x + my_esp) = '\0';
       while (*(x + my_esp + 1) == ' ')
       {
         x++;
       }
+      if (*(x + my_esp + 1) != ' ' && *(x + my_esp + 1) != '\0')
+      {
+        argc++;
+      } 
       dataAddresses[argc - 1] = x + my_esp + 1;
     }
   }
@@ -525,7 +524,7 @@ setup_stack (void **esp,const char *file_name)
   while ((int) my_esp % ALIGN)
   {
     my_esp--;
-    *my_esp = NULL;
+    *my_esp = '\0';
   }
 
   //adding address to stack 
@@ -533,13 +532,13 @@ setup_stack (void **esp,const char *file_name)
   {
     my_esp -= sizeof (dataAddresses[index]);
     //cast my_esp to an int* to expand to a 4 byte number 
-    *((int*) my_esp) = dataAddresses[index];
+    *((int*) my_esp) = (int) dataAddresses[index];
   }
   
   //push argv
   temp_esp = my_esp;
   my_esp -=  sizeof (temp_esp);
-  *((int*) my_esp) = temp_esp; 
+  *((int*) my_esp) = (int) temp_esp; 
 
   //push argc
   my_esp -=  sizeof (int);
@@ -547,11 +546,11 @@ setup_stack (void **esp,const char *file_name)
 
   //push return address
   my_esp -=  sizeof (void*);
-  *((int*) my_esp) = NULL; 
+  *((int*) my_esp) = 0; 
   //</sabrina>
   
   *esp = my_esp;
-  hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  hex_dump((int) *esp, *esp, PHYS_BASE-*esp, 1);
     
   return success;
 }

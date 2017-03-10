@@ -1,3 +1,4 @@
+#include "lib/user/syscall.h"
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -7,27 +8,27 @@
 #include "filesys/file.h"
 #include "devices/shutdown.h"
 
-//<sabrina>
+//<sabrina, connie>
 void check_pointer(void* pointer);
 
 void system_halt(void);
-void system_exit(void);
-void system_exec(void);
-void system_wait(void);
-void system_create(void);
-void system_remove(void);
-void system_open(void);
-void system_filesize(void);
-void system_read(void);
+void system_exit(int);
+pid_t system_exec(const char *);
+int system_wait(pid_t);
+bool system_create(const char *, unsigned);
+bool system_remove(const char *);
+int system_open(const char *);
+int system_filesize(int);
+int system_read(int, void *, unsigned);
 int system_write(void *stack_pointer);
-void system_seek(void);
-void system_tell(void);
-void system_close(void);
-//</sabrina>
+void system_seek(int, unsigned);
+unsigned system_tell(int);
+void system_close(int);
+//</sabrina, connie>
 
 static void syscall_handler (struct intr_frame *);
 //int write; 
-/* Debuging Method */ void debug_print(char* pointer, int bytes);
+// Debuging Method  void debug_print(char* pointer, int bytes);
 
 
 void
@@ -84,51 +85,51 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXIT:
       printf("Exit\n");
-      system_exit();
+      //system_exit();
       break;
     case SYS_EXEC:
       printf("Exec\n");
-      system_exec();
+      //system_exec();
       break;
     case SYS_WAIT:
       printf("wait\n");
-      system_wait();
+      //system_wait();
       break;
     case SYS_CREATE:
       printf("Create\n");
-      system_create();
+      //system_create();
       break;
     case SYS_REMOVE:
       printf("Remove\n");
-      system_remove();
+      //system_remove();
       break;
     case SYS_OPEN:
       printf("Open\n");
-      system_open();
+      //system_open();
       break;
     case SYS_FILESIZE:
       printf("Filesize\n");
-      system_filesize();
+      //system_filesize();
       break;
     case SYS_READ:
       printf("Read\n");
-      system_read();
+      //system_read();
       break;
     case SYS_WRITE:
       printf("Write\n");
-      f -> eax = system_write(stack_pointer);
+      f->eax = system_write(stack_pointer);
       break;
     case SYS_SEEK:
       printf("Seek\n");
-      system_seek();
+      //system_seek();
       break;
     case SYS_TELL:
       printf("Tell\n");
-      system_tell();
+      //system_tell();
       break;
     case SYS_CLOSE:
       printf("Close\n");
-      system_close();
+      //system_close();
       break;
     //Invalid system call  
     default:              
@@ -149,49 +150,52 @@ system_halt()
 }
 
 void 
-system_exit()
+system_exit(int status)
 {
     
 }
 
-void 
-system_exec()
+pid_t 
+system_exec(const char *cmd_line)
+{
+ //possibly one line long(?)
+ 
+}
+
+int 
+system_wait(pid_t pid)
+{
+ //possibly one line long(?)
+  
+}
+
+bool 
+system_create(const char *file, unsigned initial_size)
 {
   
 }
 
-void 
-system_wait()
+bool  
+system_remove(const char *file)
 {
   
 }
 
-void 
-system_create()
+int 
+system_open(const char *file)
 {
   
 }
 
-void 
-system_remove()
+//Returns the size, in bytes, of the file open as fd.
+int 
+system_filesize(int fd)
 {
   
 }
 
-void 
-system_open()
-{
-  
-}
-
-void 
-system_filesize()
-{
-  
-}
-
-void 
-system_read()
+int 
+system_read(int fd, void *buffer, unsigned size)
 {
   
 }
@@ -221,9 +225,12 @@ system_write(void *stack_pointer)
   check_pointer ((void*) stack_pointer);
   length = *(int*) stack_pointer;
 
+  /*
   printf("FD = %d\n", fd);
   printf("String = %x\n", (int)string);
   printf("Len = %d\n", length);
+  */
+  
   //if fd is stdin
   if (fd == 0)  
   {
@@ -248,17 +255,17 @@ system_write(void *stack_pointer)
 
 
 void 
-system_seek()
+system_seek(int fd, unsigned position)
 {
   
 }
 
-void system_tell()
+unsigned system_tell(int fd)
 {
 
 }
 
-void system_close()
+void system_close(int fd)
 {
 
 }

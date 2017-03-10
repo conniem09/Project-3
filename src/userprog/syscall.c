@@ -4,9 +4,31 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
+#include "devices/shutdown.h"
+
+//<sabrina>
+void check_pointer(void* pointer);
+
+void system_halt(void);
+void system_exit(void);
+void system_exec(void);
+void system_wait(void);
+void system_create(void);
+void system_remove(void);
+void system_open(void);
+void system_filesize(void);
+void system_read(void);
+int system_write(void *stack_pointer);
+void system_seek(void);
+void system_tell(void);
+void system_close(void);
+//</sabrina>
 
 static void syscall_handler (struct intr_frame *);
 //int write; 
+/* Debuging Method */ void debug_print(char* pointer, int bytes);
+
 
 void
 syscall_init (void) 
@@ -14,82 +36,238 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+// DEBUG TEMP CODE
+
+/*
+void 
+debug_print(char* pointer, int bytes)
+{
+  int outsideIndex;
+  int insideIndex;
+  char *reader = pointer;
+  while ((int)reader&1 != 0)
+  {
+   // (char*) reader = (int) reader - 1;
+  }
+  for (outsideIndex = 0; outsideIndex+(unsigned)(char*) pointer<0xc0000010; outsideIndex++) {
+    printf("%8x:   ", (int)(char*) pointer);
+    for (insideIndex = 0; insideIndex < 16; insideIndex++) {
+      int byteHere = *((char*)(unsigned)pointer);
+      if (byteHere<0)
+        byteHere = -byteHere;
+      if (pointer<0xc0000000)
+      printf("%02x ", byteHere) ;
+      (char*) pointer++;
+    }
+    printf(" |\n");
+  } 
+}
+*/
+
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  //<cris, connie>
-  void *stack_pointer =  f->esp;
+  //<cris, connie, chiahua, sabrina>
+  void *stack_pointer =  (void*) f->esp;
   
+  //check the stack pointer to make sure it is not NULL and in user memory
+  check_pointer(stack_pointer);
+  
+  //save syscall_number which is at the top of the stack
   int syscall_number = *(int*) stack_pointer;
-  printf("%d\n", syscall_number);
-  printf("%d\n", SYS_HALT);
-  
+  //debug_print((char*)stack_pointer, 40);
   switch (syscall_number)
   {
     case SYS_HALT:
       printf("Halt\n");
-      shutdown_power_off();
+      system_halt();
       break;
     case SYS_EXIT:
       printf("Exit\n");
+      system_exit();
       break;
     case SYS_EXEC:
       printf("Exec\n");
+      system_exec();
       break;
     case SYS_WAIT:
       printf("wait\n");
+      system_wait();
       break;
     case SYS_CREATE:
       printf("Create\n");
+      system_create();
       break;
     case SYS_REMOVE:
       printf("Remove\n");
+      system_remove();
       break;
     case SYS_OPEN:
       printf("Open\n");
-     
+      system_open();
       break;
     case SYS_FILESIZE:
       printf("Filesize\n");
+      system_filesize();
       break;
     case SYS_READ:
       printf("Read\n");
+      system_read();
       break;
     case SYS_WRITE:
       printf("Write\n");
-      unsigned length;
-      char *string;
-      int x;
-      
-      stack_pointer += sizeof (int);
-      //stack_pointer += sizeof (int);
-      string = (char *) stack_pointer;
-      stack_pointer += sizeof (const void *);
-      length = (unsigned) stack_pointer;
-      printf("%s\n", *string);
-      /* for(x = 0; x <= length; x++)
-      {
-       printf("%c\n", *string);
-       string++;
-      } */
+      f -> eax = system_write(stack_pointer);
       break;
     case SYS_SEEK:
       printf("Seek\n");
+      system_seek();
       break;
     case SYS_TELL:
       printf("Tell\n");
+      system_tell();
       break;
     case SYS_CLOSE:
       printf("Close\n");
+      system_close();
       break;
     //Invalid system call  
     default:              
       printf("I cannot believe you've done this :( \n");
     //exit(-1);
   }
-  //</cris>  
+  //</cris, connie, chiahua, sabrina>  
   
   printf ("Successful system call!\n");
   
-  thread_exit ();
+  //thread_exit ();
+}
+
+void 
+system_halt()
+{
+  shutdown_power_off();
+}
+
+void 
+system_exit()
+{
+    
+}
+
+void 
+system_exec()
+{
+  
+}
+
+void 
+system_wait()
+{
+  
+}
+
+void 
+system_create()
+{
+  
+}
+
+void 
+system_remove()
+{
+  
+}
+
+void 
+system_open()
+{
+  
+}
+
+void 
+system_filesize()
+{
+  
+}
+
+void 
+system_read()
+{
+  
+}
+
+//<cris>
+int 
+system_write(void *stack_pointer)
+{
+  //read paramaters off the stack 
+  int fd;
+  int string;
+  int length;
+  
+  //store the file descriptor
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //store the string parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  string = *(int*) stack_pointer;
+  check_pointer ((void*) string);  
+  
+  //store the length parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  length = *(int*) stack_pointer;
+
+  printf("FD = %d\n", fd);
+  printf("String = %x\n", (int)string);
+  printf("Len = %d\n", length);
+  //if fd is stdin
+  if (fd == 0)  
+  {
+    //DONT DO ANYTHING >:c
+  } 
+  
+  //if fd is stdout
+  else if (fd == 1) 
+  {
+    //write the string to the console
+    putbuf ((char*)string, (size_t) length); 
+  }
+  
+  //if fd is anything else like a file or something
+  else 
+  {
+    //write to file
+  }
+  return (int) length;
+}
+//</cris>
+
+
+void 
+system_seek()
+{
+  
+}
+
+void system_tell()
+{
+
+}
+
+void system_close()
+{
+
+}
+
+void check_pointer(void* pointer)
+{
+  if(pointer == NULL || is_kernel_vaddr(pointer))
+  {
+    printf("I'd rather you didn't do that: WRONG POINTER\n");
+    thread_exit ();
+  }
 }

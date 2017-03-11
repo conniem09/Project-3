@@ -12,18 +12,18 @@
 void check_pointer(void* pointer);
 
 void system_halt(void);
-void system_exit(int);
-pid_t system_exec(const char *);
-int system_wait(pid_t);
-bool system_create(const char *, unsigned);
-bool system_remove(const char *);
-int system_open(const char *);
-int system_filesize(int);
-int system_read(int, void *, unsigned);
+void system_exit(void *stack_pointer);
+pid_t system_exec(void *stack_pointer);
+int system_wait(void *stack_pointer);
+bool system_create(void *stack_pointer);
+bool system_remove(void *stack_pointer);
+int system_open(void *stack_pointer);
+int system_filesize(void *stack_pointer);
+int system_read(void *stack_pointer);
 int system_write(void *stack_pointer);
-void system_seek(int, unsigned);
-unsigned system_tell(int);
-void system_close(int);
+void system_seek(void *stack_pointer);
+unsigned system_tell(void *stack_pointer);
+void system_close(void *stack_pointer);
 //</sabrina, connie>
 
 static void syscall_handler (struct intr_frame *);
@@ -85,7 +85,7 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXIT:
       printf("Exit\n");
-      //system_exit();
+      system_exit(stack_pointer);
       break;
     case SYS_EXEC:
       printf("Exec\n");
@@ -150,52 +150,62 @@ system_halt()
 }
 
 void 
-system_exit(int status)
+system_exit(void *stack_pointer)
 {
-    
+  //<chiahua>
+  int status;
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  status = *(int*) stack_pointer;
+  //</chiahua>
+  //<sabrina>
+  thread_exit();
+  //return status
+  //</sabrina>
 }
 
+
 pid_t 
-system_exec(const char *cmd_line)
+system_exec(void *stack_pointer)
 {
  //possibly one line long(?)
  
 }
 
 int 
-system_wait(pid_t pid)
+system_wait(void *stack_pointer)
 {
  //possibly one line long(?)
   
 }
 
 bool 
-system_create(const char *file, unsigned initial_size)
+system_create(void *stack_pointer)
 {
   
 }
 
 bool  
-system_remove(const char *file)
+system_remove(void *stack_pointer)
 {
   
 }
 
 int 
-system_open(const char *file)
+system_open(void *stack_pointer)
 {
   
 }
 
 //Returns the size, in bytes, of the file open as fd.
 int 
-system_filesize(int fd)
+system_filesize(void *stack_pointer)
 {
   
 }
 
 int 
-system_read(int fd, void *buffer, unsigned size)
+system_read(void *stack_pointer)
 {
   
 }
@@ -255,17 +265,17 @@ system_write(void *stack_pointer)
 
 
 void 
-system_seek(int fd, unsigned position)
+system_seek(void *stack_pointer)
 {
   
 }
 
-unsigned system_tell(int fd)
+unsigned system_tell(void *stack_pointer)
 {
 
 }
 
-void system_close(int fd)
+void system_close(void *stack_pointer)
 {
 
 }

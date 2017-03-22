@@ -18,11 +18,14 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "lib/string.h"
+#include "threads/synch.h"
 
 #define ALIGN 4 /* align to multiple of this number */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+//our code
+int getStatus(struct thread *parent, tid_t child_tid);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -88,13 +91,53 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   //<sabrina>
-  while(1){
-    
+  
+  struct thread *parent = thread_current();
+  struct list_elem *e;
+  int stat;
+  struct child *child_node;
+
+  //see if child is in status list
+  stat = getStatus(parent, child_tid);
+  if(stat != -1)
+    return stat;
+  
+  //if not in status list, look through child list
+  for (e = list_begin (&parent->child_list); 
+       e != list_end (&parent->child_list); e = list_next (e))
+  {
+    child_node = list_entry (e, struct child, elem);
+    if(child_node->kid->tid == child_tid)
+    {
+      //sema down to block parent
+      sema_down(child_node->kid->block_parent);
+      
+      //parent woke up 
+      stat = getStatus(parent, child_tid);
+      if(stat != -1)
+        return stat;        
+    }
   }
+  return -1;
   //</sabrina>
+}
+/* Search the status list and returns exit status of the given child */
+int
+getStatus(struct thread *parent, tid_t child_tid)
+{
+  struct status *status_node;
+  struct list_elem *e;
+  for (e = list_begin (&parent->status_list); 
+       e != list_end (&parent->status_list); e = list_next (e))
+  {
+    status_node = list_entry (e, struct status, elem);
+    if(status_node->pid == (int)child_tid)
+      return status_node->exit_status;
+  }
+  return -1;
 }
 
 /* Free the current process's resources. */

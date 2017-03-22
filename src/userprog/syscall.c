@@ -7,6 +7,8 @@
 #include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "devices/shutdown.h"
+#include "filesys/filesys.h"
+#include "devices/input.h"
 
 //<sabrina, connie>
 void check_pointer(void* pointer);
@@ -27,6 +29,8 @@ void system_close(void *stack_pointer);
 //</sabrina, connie>
 
 static void syscall_handler (struct intr_frame *);
+
+
 //int write; 
 // Debuging Method  void debug_print(char* pointer, int bytes);
 
@@ -89,31 +93,31 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       printf("Exec\n");
-      //system_exec();
+      //system_exec(stack_pointer);
       break;
     case SYS_WAIT:
       printf("wait\n");
-      //system_wait();
+      //system_wait(stack_pointer);
       break;
     case SYS_CREATE:
       printf("Create\n");
-      //system_create();
+      //system_create(stack_pointer);
       break;
     case SYS_REMOVE:
       printf("Remove\n");
-      //system_remove();
+      //system_remove(stack_pointer);
       break;
     case SYS_OPEN:
       printf("Open\n");
-      //system_open();
+      f->eax = system_open(stack_pointer);
       break;
     case SYS_FILESIZE:
       printf("Filesize\n");
-      //system_filesize();
+      //system_filesize(stack_pointer);
       break;
     case SYS_READ:
       printf("Read\n");
-      //system_read();
+      //system_read(stack_pointer);
       break;
     case SYS_WRITE:
       printf("Write\n");
@@ -121,15 +125,15 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_SEEK:
       printf("Seek\n");
-      //system_seek();
+      //system_seek(stack_pointer);
       break;
     case SYS_TELL:
       printf("Tell\n");
-      //system_tell();
+      //system_tell(stack_pointer);
       break;
     case SYS_CLOSE:
       printf("Close\n");
-      //system_close();
+      //system_close(stack_pointer);
       break;
     //Invalid system call  
     default:              
@@ -138,7 +142,7 @@ syscall_handler (struct intr_frame *f)
   }
   //</cris, connie, chiahua, sabrina>  
   
-  printf ("Successful system call!\n");
+  printf ("system call!\n");
   
   //thread_exit ();
 }
@@ -153,61 +157,184 @@ void
 system_exit(void *stack_pointer)
 {
   //<chiahua>
-  int status;
+  int e_status;
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
-  status = *(int*) stack_pointer;
+  e_status = *(int*) stack_pointer;
+  thread_current()->exit_status = e_status;
   //</chiahua>
   //<sabrina>
+  printf("About to exit\n");
   thread_exit();
-  //return status
+  printf("Just exited\n");
   //</sabrina>
 }
 
 
 pid_t 
-system_exec(void *stack_pointer)
+system_exec(void *stack_pointer UNUSED)
 {
  //possibly one line long(?)
+ return -1;
  
 }
 
 int 
 system_wait(void *stack_pointer)
 {
- //possibly one line long(?)
+  //possibly one line long(?)
+  int pid;
+  //get file_name and size from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  pid = *(int*) stack_pointer;
+  return process_wait((tid_t)pid);
   
 }
 
 bool 
 system_create(void *stack_pointer)
 {
+  //<connie>
+  int *file_name;
+  int size;
   
+  //get file_name and size from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer (stack_pointer);
+  file_name = (int*) stack_pointer;
+  
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  size = *(int*) stack_pointer;
+  
+  return filesys_create((char *)file_name, size);
+  //</connie>
 }
 
 bool  
 system_remove(void *stack_pointer)
 {
+  //<connie>
+  int *file_name;
   
+  //get file_name from the stack
+  stack_pointer =  stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  file_name = (int*) stack_pointer;
+  
+  return filesys_remove((char *)file_name);
+  //</connie>
 }
 
 int 
 system_open(void *stack_pointer)
 {
+  //<sabrina>
+  int i;
+  int *file_name;
+  struct thread *cur = thread_current();
+  struct file *open_file;
+  //check for available space
+  if (cur-> num_open_files >= MAX_FILES)
+    return -1;
   
+  //store the file descriptor
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer (stack_pointer);
+  file_name = (int*) stack_pointer;
+
+  //check to see if file opened successfully 
+  open_file = filesys_open((char *)file_name);
+  if(open_file == NULL)
+    return -1;
+  
+  //iterate through the array to find empty spots 
+  for(i = 0; i < MAX_FILES; i++)
+  {
+    if(cur-> fd_pointers[i] == 0)
+      break;
+  }
+  
+  //if valid then put in array
+  cur-> fd_pointers[i] = open_file;
+  cur-> num_open_files++;
+  //fd is equal to index plus offset of 2 to account for 0 and 1 not available
+  return (i + 2);
+  //</sabrina>
 }
 
 //Returns the size, in bytes, of the file open as fd.
 int 
 system_filesize(void *stack_pointer)
 {
+  //<connie>
+  int fd;
+  struct file* pointer;
   
+  //store the file descriptor
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //checks that fd is in range
+  if (fd >= 2 && fd <= MAX_FILES + 2)
+  {
+    pointer = thread_current()->fd_pointers[fd-2];
+    if((int)pointer)
+    {
+      return file_length(pointer);
+    }
+  }
+  //</connie>
+  return -1;
 }
 
 int 
 system_read(void *stack_pointer)
 {
+  //<connie>
+  //read paramaters off the stack 
+  int fd;
+  int buffer;
+  int length;
+  struct file* pointer;
   
+  //store the file descriptor
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //store the buffer parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  buffer = *(int*) stack_pointer;
+  check_pointer ((void*) buffer);  
+  
+  //store the length parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  length = *(int*) stack_pointer;
+  
+  //if fd = 0, get input from keyboard
+  if (fd == 0)
+  {
+    return input_getc();
+  }
+  
+  //checks that fd is in range
+  else if (fd >= 2 && fd <= MAX_FILES + 2)
+  {
+    pointer = thread_current()->fd_pointers[fd-2];
+    if((int)pointer)
+    {
+      return file_read(pointer, (int*)buffer, length);
+    }
+  }
+  
+  return -1;
+  //</connie>
+
 }
 
 //<cris>
@@ -267,17 +394,78 @@ system_write(void *stack_pointer)
 void 
 system_seek(void *stack_pointer)
 {
+  //<connie>
+  int fd;
+  int position;
+  struct file* pointer;
   
+  //get fd and position from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  position = *(int*) stack_pointer;
+  
+  //checks that fd is in range
+  if (fd >= 2 && fd <= MAX_FILES + 2)
+  {
+    pointer = thread_current()->fd_pointers[fd-2];
+    if((int)pointer)
+    {
+      file_seek(pointer, position);
+    }
+  }
+  //</connie>
 }
 
 unsigned system_tell(void *stack_pointer)
 {
-
+  //<connie>
+  int fd;
+  struct file* pointer;
+  
+  //store the string parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //checks that fd is in range
+  if (fd >= 2 && fd <= MAX_FILES + 2)
+  {
+    pointer = thread_current()->fd_pointers[fd-2];
+    if((int)pointer)
+    {
+      return file_tell(pointer);
+    }
+  }
+  //</connie>
+  return 0;
 }
 
 void system_close(void *stack_pointer)
 {
-
+  //<connie>
+  int fd;
+  struct file* pointer;
+  
+  //store the string parameter
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //checks that fd is in range
+  if (fd >= 2 && fd <= (MAX_FILES + 2))
+  {
+    pointer= thread_current()->fd_pointers[fd-2];
+    if((int)pointer)
+    {
+      file_close(pointer);
+      thread_current()->num_open_files --;
+    }
+  }
+  //</connie>
 }
 
 void check_pointer(void* pointer)

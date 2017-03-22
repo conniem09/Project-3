@@ -24,6 +24,10 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+//<sabrina>
+#define MAX_FILES 128                   /*Sets max num files that can be open*/
+//</sabrina>
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -90,11 +94,27 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem allelem;           /* List element for all threads list */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    
 
+    /* Project 2 code */
+    //<sabrina>
+    struct file* fd_pointers[MAX_FILES];        /* Array of file pointers */
+    int num_open_files;                 /* Keeps track of number of files */
+    //</sabrina>
+    //<chiahua>
+    struct thread *parent;              /* Pointer to thread's parent */
+    struct semaphore *block_parent;     /* Semaphore for parent wait */
+    int exit_status;                    /* Holds exit status from syscall */
+    //</chiahua>
+    
+    //<cris>
+    struct list child_list;             /* a list of children */
+    struct list status_list;            /* a list of children statuses */
+    //</cris>
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -102,7 +122,27 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
   };
+
+//<cris>
+//data structure that holds information for a child
+//to be used for a thread's child_list
+struct child
+{
+  struct thread *kid;
+  struct list_elem elem;
+};
+
+//data structure that holds information a child passed after calling exit()
+//to be used for a thread's status_list
+struct status
+{
+  int pid;
+  int exit_status;
+  struct list_elem elem;
+};
+//</cris>
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

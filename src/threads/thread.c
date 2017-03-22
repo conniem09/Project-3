@@ -45,6 +45,8 @@ struct kernel_thread_frame
     void *aux;                  /* Auxiliary data for function. */
   };
 
+
+
 /* Statistics. */
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
@@ -171,6 +173,7 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
+  struct child *c = palloc_get_page(PAL_ZERO);
 
   ASSERT (function != NULL);
 
@@ -198,6 +201,13 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+  
+  /* register the child with the parent */
+  //<chiahua>
+  c->kid = t;
+  list_push_back(&thread_current()->child_list, &c->elem);
+  
+  //</chiahua>
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -283,7 +293,33 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
+  //<chiahua>
+  struct list_elem *e;
+  struct thread *parent;
 
+  //register our exit status with parent
+  struct status *statusNode = palloc_get_page(PAL_ZERO);
+  statusNode->pid = thread_current()->tid;
+  statusNode->exit_status = thread_current()->exit_status;
+  list_push_back(&thread_current()->parent->status_list, &statusNode->elem); 
+  
+  //remove ourself from parent's children list
+  parent = thread_current()->parent;
+  for (e = list_begin (&parent->child_list); 
+       e != list_end (&parent->child_list); e = list_next (e))
+  {
+    struct child *me = list_entry (e, struct child, elem);
+    if (me->kid->tid == thread_current()->tid)
+    {
+      list_remove(&me->elem);
+      break;
+    }
+  }
+  
+  //unblock our parent
+  sema_up(thread_current()->block_parent);
+
+  //</chiahua>
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -453,6 +489,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  int i;
   enum intr_level old_level;
   
   ASSERT (t != NULL);
@@ -465,6 +502,21 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  //our Project 2 code
+  //<chiahua>
+  list_init (&t->child_list);     
+  list_init (&t->status_list);    
+  t->parent = thread_current();   //ERROR PUT IN EXEC
+  sema_init (t->block_parent, 0); 
+  //</chiahua>
+  //<sabrina>
+  t->num_open_files = 0;
+  for(i = 0; i < MAX_FILES; i++)
+  {
+      t->fd_pointers[i] = 0;
+  }
+  //</sabrina>
 
   old_level = intr_disable();
   list_push_back (&all_list, &t->allelem);

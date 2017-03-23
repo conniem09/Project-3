@@ -44,12 +44,42 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  //tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = register_child_with_parent(file_name, PRI_DEFAULT, start_process, 
+                                   fn_copy, thread_current());
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+    
+    
+  // TODO: do child->parent = parent somewhere in this method
+  
   return tid;
 }
 
+
+
+
+  //<chiahua>
+  /*
+  for (e = list_begin (&all_list); 
+       e != list_end (&all_list); e = list_next (e))
+  {
+    child_thread = list_entry (e, struct thread, allelem);
+    if (child_thread->tid == tid) 
+    {
+      //found child thread. Register parent with child, add child to parent
+      child_thread->parent = thread_current();
+      struct child *c = palloc_get_page(PAL_ZERO);
+      c->kid = child_thread;
+      list_push_back(&thread_current()->child_list, &c->elem);
+      
+    }
+  }*/
+  //</chiahua> 
+  
+  
+  
+  
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -70,6 +100,7 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+  //sema_up (&thread_current()->parent->forking);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -93,14 +124,56 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  //<sabrina>
-  
-  struct thread *parent = thread_current();
+  //<chiahua>
+  //search see if is our child
   struct list_elem *e;
-  int stat;
+  struct thread *parent = thread_current();
   struct child *child_node;
+  struct thread *child_thread;
+  int stat;
 
-  //see if child is in status list
+  stat = -1;
+  for (e = list_begin (&parent->child_list); 
+       e != list_end (&parent->child_list); e = list_next (e))
+  {
+    child_node = list_entry (e, struct child, elem);
+    child_thread = child_node->kid;
+    if (child_thread->tid == child_tid) 
+    {
+
+      //block ourself until child is ready to exit
+      sema_down(&child_thread->block_parent);
+      
+      //parent woke up, child has exit status ready
+      stat = (int) child_thread->exit_status;     
+      
+      //remove child node from our children list because it dying
+      list_remove(&child_node->elem);
+      
+      //allow child to ded XP
+      sema_up (&child_thread->block_child);
+      return stat;
+
+    }
+  
+    /*if (stat>=0)
+    {*/
+
+      return stat;
+    //}
+    //return -1;
+    //</chiahua>
+    
+  }
+  
+  
+  //<sabrina>
+  //struct thread *parent = thread_current();
+  //struct list_elem *e;
+  //int stat;
+  //struct child *child_node;
+
+  /*//see if child is in status list
   stat = getStatus(parent, child_tid);
   if(stat != -1)
     return stat;
@@ -122,7 +195,7 @@ process_wait (tid_t child_tid)
     }
   }
   return -1;
-  //</sabrina>
+  //</sabrina>*/
 }
 /* Search the status list and returns exit status of the given child */
 int
@@ -147,6 +220,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -289,6 +363,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   file = filesys_open (fileArg0);
+  //<sabrina>
+  strlcpy (thread_current()->name, fileArg0, sizeof thread_current()->name);
+  //</sabrina>
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", fileArg0);

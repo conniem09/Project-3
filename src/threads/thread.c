@@ -46,7 +46,6 @@ struct kernel_thread_frame
   };
 
 
-
 /* Statistics. */
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
@@ -72,6 +71,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -149,6 +149,37 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
+tid_t
+register_child_with_parent(const char *name, int priority, 
+      thread_func *function, void *aux, struct thread *parent)
+{
+    //<chiahua>
+  struct list_elem *e;
+  struct thread *child_thread;
+
+  tid_t tid = thread_create(name, priority, function, aux);
+  //iterate through the all_list
+  for (e = list_begin (&all_list); 
+       e != list_end (&all_list); e = list_next (e))
+  {
+    //get an element from the all_list
+    child_thread = list_entry (e, struct thread, allelem);
+    if (child_thread->tid == tid) 
+    {
+      //found child thread. Register parent with child, add child to parent
+      child_thread->parent = parent;
+      struct child *c = palloc_get_page(PAL_ZERO);
+      c->kid = child_thread;
+      list_push_back(&thread_current()->child_list, &c->elem);
+      break;
+    }
+  }
+        //sema_down (&thread_current()->forking);
+
+  return tid;
+  //</chiahua>      
+}
+
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -173,7 +204,6 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-  struct child *c = palloc_get_page(PAL_ZERO);
 
   ASSERT (function != NULL);
 
@@ -202,12 +232,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
   
-  /* register the child with the parent */
-  //<chiahua>
-  c->kid = t;
-  list_push_back(&thread_current()->child_list, &c->elem);
-  
-  //</chiahua>
+
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -294,32 +319,14 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
   //<chiahua>
-  struct list_elem *e;
-  struct thread *parent;
+  //unblock our parent and block to wait for parent to fetch status
+  sema_up(&thread_current()->block_parent);
+  sema_down(&thread_current()->block_child);
 
-  //register our exit status with parent
-  struct status *statusNode = palloc_get_page(PAL_ZERO);
-  statusNode->pid = thread_current()->tid;
-  statusNode->exit_status = thread_current()->exit_status;
-  list_push_back(&thread_current()->parent->status_list, &statusNode->elem); 
-  
-  //remove ourself from parent's children list
-  parent = thread_current()->parent;
-  for (e = list_begin (&parent->child_list); 
-       e != list_end (&parent->child_list); e = list_next (e))
-  {
-    struct child *me = list_entry (e, struct child, elem);
-    if (me->kid->tid == thread_current()->tid)
-    {
-      list_remove(&me->elem);
-      break;
-    }
-  }
-  
-  //unblock our parent
-  sema_up(thread_current()->block_parent);
+  //parent has grabbed our exit status, proceed to die  
 
   //</chiahua>
+  
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -507,10 +514,12 @@ init_thread (struct thread *t, const char *name, int priority)
   //<chiahua>
   list_init (&t->child_list);     
   list_init (&t->status_list);    
-  t->parent = thread_current();   //ERROR PUT IN EXEC
-  sema_init (t->block_parent, 0); 
+  t->parent = NULL;
+  sema_init (&t->block_parent, 0); 
+  sema_init (&t->block_child, 0);
+  sema_init (&t->forking, 0);
   //</chiahua>
-  //<sabrina>
+  //<sabrina> 
   t->num_open_files = 0;
   for(i = 0; i < MAX_FILES; i++)
   {

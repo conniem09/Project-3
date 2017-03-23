@@ -84,56 +84,56 @@ syscall_handler (struct intr_frame *f)
   switch (syscall_number)
   {
     case SYS_HALT:
-      printf("Halt\n");
+      //printf("Halt\n");
       system_halt();
       break;
     case SYS_EXIT:
-      printf("Exit\n");
+      //printf("Exit\n");
       system_exit(stack_pointer);
       break;
     case SYS_EXEC:
-      printf("Exec\n");
-      //system_exec(stack_pointer);
+      //printf("Exec\n");
+      f->eax = system_exec(stack_pointer);
       break;
     case SYS_WAIT:
-      printf("wait\n");
-      //system_wait(stack_pointer);
+      //printf("wait\n");
+      f->eax = system_wait(stack_pointer);
       break;
     case SYS_CREATE:
-      printf("Create\n");
-      //system_create(stack_pointer);
+      //printf("Create\n");
+      f->eax = system_create(stack_pointer);
       break;
     case SYS_REMOVE:
-      printf("Remove\n");
-      //system_remove(stack_pointer);
+      //printf("Remove\n");
+      f->eax = system_remove(stack_pointer);
       break;
     case SYS_OPEN:
-      printf("Open\n");
+      //printf("Open\n");
       f->eax = system_open(stack_pointer);
       break;
     case SYS_FILESIZE:
-      printf("Filesize\n");
-      //system_filesize(stack_pointer);
+      //printf("Filesize\n");
+      f->eax = system_filesize(stack_pointer);
       break;
     case SYS_READ:
-      printf("Read\n");
-      //system_read(stack_pointer);
+      //printf("Read\n");
+      f->eax = system_read(stack_pointer);
       break;
     case SYS_WRITE:
-      printf("Write\n");
+      //printf("Write\n");
       f->eax = system_write(stack_pointer);
       break;
     case SYS_SEEK:
-      printf("Seek\n");
-      //system_seek(stack_pointer);
+      //printf("Seek\n");
+      system_seek(stack_pointer);
       break;
     case SYS_TELL:
-      printf("Tell\n");
-      //system_tell(stack_pointer);
+      //printf("Tell\n");
+      f->eax = system_tell(stack_pointer);
       break;
     case SYS_CLOSE:
-      printf("Close\n");
-      //system_close(stack_pointer);
+      //printf("Close\n");
+      system_close(stack_pointer);
       break;
     //Invalid system call  
     default:              
@@ -141,8 +141,6 @@ syscall_handler (struct intr_frame *f)
     //exit(-1);
   }
   //</cris, connie, chiahua, sabrina>  
-  
-  printf ("system call!\n");
   
   //thread_exit ();
 }
@@ -156,27 +154,33 @@ system_halt()
 void 
 system_exit(void *stack_pointer)
 {
-  //<chiahua>
+  //<chiahua, sabrina>
   int e_status;
+  
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   e_status = *(int*) stack_pointer;
   thread_current()->exit_status = e_status;
   //</chiahua>
-  //<sabrina>
-  printf("About to exit\n");
+  printf("%s: exit(%d)\n",thread_current()->name, e_status);
   thread_exit();
-  printf("Just exited\n");
   //</sabrina>
 }
 
 
 pid_t 
-system_exec(void *stack_pointer UNUSED)
+system_exec(void *stack_pointer)
 {
- //possibly one line long(?)
- return -1;
- 
+  //<sabrina>
+  int file_name;
+  pid_t pid;
+  //get file_name and size from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer (stack_pointer);
+  file_name = *(int*) stack_pointer;
+  pid = process_execute((char*)file_name);
+  return pid; 
+ //</sabrina>
 }
 
 int 
@@ -362,12 +366,6 @@ system_write(void *stack_pointer)
   check_pointer ((void*) stack_pointer);
   length = *(int*) stack_pointer;
 
-  /*
-  printf("FD = %d\n", fd);
-  printf("String = %x\n", (int)string);
-  printf("Len = %d\n", length);
-  */
-  
   //if fd is stdin
   if (fd == 0)  
   {
@@ -385,6 +383,9 @@ system_write(void *stack_pointer)
   else 
   {
     //write to file
+    //<chiahua>
+    return file_write(thread_current()->fd_pointers[fd-2], (void*) string, length);
+    //</chiahua>
   }
   return (int) length;
 }
@@ -426,7 +427,7 @@ unsigned system_tell(void *stack_pointer)
   int fd;
   struct file* pointer;
   
-  //store the string parameter
+  //get fd from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
@@ -450,7 +451,7 @@ void system_close(void *stack_pointer)
   int fd;
   struct file* pointer;
   
-  //store the string parameter
+  //get fd from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;

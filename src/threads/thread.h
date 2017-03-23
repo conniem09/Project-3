@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -107,7 +108,10 @@ struct thread
     //</sabrina>
     //<chiahua>
     struct thread *parent;              /* Pointer to thread's parent */
-    struct semaphore *block_parent;     /* Semaphore for parent wait */
+    struct semaphore block_parent;      /* Semaphore for parent wait */
+    struct semaphore block_child;       /* Semaphore to allow parent get stat */
+   struct semaphore forking;       /* Semaphore to wait for child to load */
+
     int exit_status;                    /* Holds exit status from syscall */
     //</chiahua>
     
@@ -157,6 +161,8 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
+tid_t register_child_with_parent(const char *name, int priority,
+               thread_func *function, void *aux, struct thread *parent_thread);
 
 void thread_block (void);
 void thread_unblock (struct thread *);

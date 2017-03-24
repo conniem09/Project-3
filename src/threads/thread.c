@@ -157,7 +157,8 @@ register_child_with_parent(const char *name, int priority,
   struct list_elem *e;
   struct thread *child_thread;
 
-  tid_t tid = thread_create(name, priority, function, aux);
+  tid_t tid = thread_create(name, priority, function, aux);  
+  
   //iterate through the all_list
   for (e = list_begin (&all_list); 
        e != list_end (&all_list); e = list_next (e))
@@ -168,17 +169,26 @@ register_child_with_parent(const char *name, int priority,
     {
       //found child thread. Register parent with child, add child to parent
       child_thread->parent = parent;
-      struct child *c = palloc_get_page(PAL_ZERO);
-      c->kid = child_thread;
-      list_push_back(&thread_current()->child_list, &c->elem);
-      break;
+      
+      //wait for child to finish load. If success, continue registration
+      //else, abort registration
+      sema_down (&thread_current()->wait_for_load);
+      
+      if (child_thread->tid == tid)
+      {
+        struct child *c = palloc_get_page(PAL_ZERO);
+        c->kid = child_thread;
+        list_push_back(&thread_current()->child_list, &c->elem);
+        break;
+      }
     }
   }
-        //sema_down (&thread_current()->forking);
-
-  return tid;
-  //</chiahua>      
+  return child_thread->tid;
+  //</chiahua>     
 }
+  
+ 
+
 
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
@@ -317,16 +327,29 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  int index;
+  struct file* open_file;
   ASSERT (!intr_context ());
   //<chiahua>
-  //unblock our parent and block to wait for parent to fetch status
+    file_close(thread_current() -> command_line);
+    
+  //unblock our parent, then block to wait for parent to fetch status
   sema_up(&thread_current()->block_parent);
   sema_down(&thread_current()->block_child);
 
   //parent has grabbed our exit status, proceed to die  
 
+  //iterate through array fd_pointers, closing any open files
+  for (index = 0; index < MAX_FILES; index++) 
+  {
+    open_file = thread_current()->fd_pointers[index];
+      file_close(open_file);
+  }
   //</chiahua>
+
   
+  //<cris>
+  //</cris>
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -335,8 +358,11 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+  
   list_remove (&thread_current()->allelem);
+
   thread_current ()->status = THREAD_DYING;
+
   schedule ();
   NOT_REACHED ();
 }
@@ -515,9 +541,10 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->child_list);     
   list_init (&t->status_list);    
   t->parent = NULL;
+  t->parent_wait = 0;
   sema_init (&t->block_parent, 0); 
   sema_init (&t->block_child, 0);
-  sema_init (&t->forking, 0);
+  sema_init (&t->wait_for_load, 0);
   //</chiahua>
   //<sabrina> 
   t->num_open_files = 0;

@@ -10,10 +10,9 @@
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "userprog/process.h"
+#include "userprog/pagedir.h"
 
 //<sabrina, connie, cris>
-void check_pointer(void* pointer);
-
 void system_halt(void);
 void system_exit(void *stack_pointer);
 pid_t system_exec(void *stack_pointer);
@@ -27,49 +26,20 @@ int system_write(void *stack_pointer);
 void system_seek(void *stack_pointer);
 unsigned system_tell(void *stack_pointer);
 void system_close(void *stack_pointer);
-void system_exit_helper(int e_status);
+
+void check_pointer(void* pointer);
 //</sabrina, connie, cris>
 
 static void syscall_handler (struct intr_frame *);
 
-
-//int write; 
-// Debuging Method  void debug_print(char* pointer, int bytes);
-
+struct lock filesys_lock;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&filesys_lock);
 }
-
-// DEBUG TEMP CODE
-
-/*
-void 
-debug_print(char* pointer, int bytes)
-{
-  int outsideIndex;
-  int insideIndex;
-  char *reader = pointer;
-  while ((int)reader&1 != 0)
-  {
-   // (char*) reader = (int) reader - 1;
-  }
-  for (outsideIndex = 0; outsideIndex+(unsigned)(char*) pointer<0xc0000010; outsideIndex++) {
-    printf("%8x:   ", (int)(char*) pointer);
-    for (insideIndex = 0; insideIndex < 16; insideIndex++) {
-      int byteHere = *((char*)(unsigned)pointer);
-      if (byteHere<0)
-        byteHere = -byteHere;
-      if (pointer<0xc0000000)
-      printf("%02x ", byteHere) ;
-      (char*) pointer++;
-    }
-    printf(" |\n");
-  } 
-}
-*/
 
 static void
 syscall_handler (struct intr_frame *f) 
@@ -86,61 +56,47 @@ syscall_handler (struct intr_frame *f)
   switch (syscall_number)
   {
     case SYS_HALT:
-      //printf("Halt\n");
       system_halt();
       break;
     case SYS_EXIT:
-      //printf("Exit\n");
       system_exit(stack_pointer);
       break;
     case SYS_EXEC:
-      //printf("Exec\n");
       f->eax = system_exec(stack_pointer);
       break;
     case SYS_WAIT:
-      //printf("wait\n");
       f->eax = system_wait(stack_pointer);
       break;
     case SYS_CREATE:
-      //printf("Create\n");
       f->eax = system_create(stack_pointer);
       break;
     case SYS_REMOVE:
-      //printf("Remove\n");
       f->eax = system_remove(stack_pointer);
       break;
     case SYS_OPEN:
-      //printf("Open\n");
       f->eax = system_open(stack_pointer);
       break;
     case SYS_FILESIZE:
-      //printf("Filesize\n");
       f->eax = system_filesize(stack_pointer);
       break;
     case SYS_READ:
-      //printf("Read\n");
       f->eax = system_read(stack_pointer);
       break;
     case SYS_WRITE:
-      //printf("Write\n");
       f->eax = system_write(stack_pointer);
       break;
     case SYS_SEEK:
-      //printf("Seek\n");
       system_seek(stack_pointer);
       break;
     case SYS_TELL:
-      //printf("Tell\n");
       f->eax = system_tell(stack_pointer);
       break;
     case SYS_CLOSE:
-      //printf("Close\n");
       system_close(stack_pointer);
       break;
     //Invalid system call  
     default:              
-      printf("I cannot believe you've done this :( \n");
-    //exit(-1);
+      system_exit_helper(-1);
   }
   //</cris, connie, chiahua, sabrina>  
   
@@ -190,7 +146,7 @@ system_exec(void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer (stack_pointer);
   file_name = *(int*) stack_pointer;
-  check_pointer(file_name);
+  check_pointer((int*)file_name);
   
   pid = process_execute((char*)file_name);
   return pid; 
@@ -217,34 +173,43 @@ system_create(void *stack_pointer)
   //<connie, cris>
   int file_name;
   int size;
+  bool result;
   
   //get file_name and size from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer (stack_pointer);
   file_name = *(int*) stack_pointer;
-  check_pointer(file_name);
+  check_pointer((int*)file_name);
   
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   size = *(int*) stack_pointer;
   
-  return filesys_create((char *)file_name, size);
+  lock_acquire(&filesys_lock);
+  result = filesys_create((char *)file_name, size);
+  lock_release(&filesys_lock);
+  return result;
   //</connie, cris>
 }
 
 bool  
 system_remove(void *stack_pointer)
 {
+
   //<connie, cris>
   int file_name;
-  
+  bool result;
   //get file_name from the stack
-  stack_pointer =  stack_pointer + 1;
+  stack_pointer =  (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   file_name = *(int*) stack_pointer;
-  check_pointer(file_name);
   
-  return filesys_remove((char *)file_name);
+  check_pointer((int*)file_name);
+
+  lock_acquire(&filesys_lock);
+  result = filesys_remove((char *)file_name);
+  lock_release(&filesys_lock);
+  return result;
   //</connie, cris>
 }
 
@@ -265,10 +230,12 @@ system_open(void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer (stack_pointer);
   file_name = *(int*) stack_pointer;
-  check_pointer(file_name);
+  check_pointer((int*)file_name);
   
   //check to see if file opened successfully 
+  lock_acquire(&filesys_lock);
   open_file = filesys_open((char *)file_name);
+  lock_release(&filesys_lock);
   if(open_file == NULL)
     return -1;
   
@@ -295,6 +262,7 @@ system_filesize(void *stack_pointer)
   //<connie, cris>
   int fd;
   struct file* pointer;
+  int result;
   
   //store the file descriptor
   stack_pointer = (int*) stack_pointer + 1;
@@ -307,7 +275,10 @@ system_filesize(void *stack_pointer)
     pointer = thread_current()->fd_pointers[fd-2];
     if((int)pointer)
     {
-      return file_length(pointer);
+      lock_acquire(&filesys_lock);
+      result = file_length(pointer);
+      lock_release(&filesys_lock);
+      return result;
     }
   }
   //</connie, cris>
@@ -323,12 +294,13 @@ system_read(void *stack_pointer)
   int buffer;
   int length;
   struct file* pointer;
+  int result;
   
   //store the file descriptor
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
-  
+
   //store the buffer parameter
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
@@ -352,7 +324,10 @@ system_read(void *stack_pointer)
     pointer = thread_current()->fd_pointers[fd-2];
     if((int)pointer)
     {
-      return file_read(pointer, (int*)buffer, length);
+      lock_acquire(&filesys_lock);
+      result = file_read(pointer, (int*)buffer, length); 
+      lock_release(&filesys_lock);
+      return result;
     }
   }
   
@@ -369,6 +344,7 @@ system_write(void *stack_pointer)
   int fd;
   int string;
   int length;
+  int result;
   
   //store the file descriptor
   stack_pointer = (int*) stack_pointer + 1;
@@ -396,7 +372,8 @@ system_write(void *stack_pointer)
   else if (fd == 1) 
   {
     //write the string to the console
-    putbuf ((char*)string, (size_t) length); 
+    putbuf ((char*)string, (size_t) length);
+    return (int) length; 
   }
   
   //if fd is anything else like a file or something
@@ -404,11 +381,20 @@ system_write(void *stack_pointer)
   {
     //write to file
     //<chiahua>
-    return file_write(thread_current()->fd_pointers[fd-2], (void*) string, length);
+    if (fd >= 2 && fd <= MAX_FILES + 2)
+    {
+      if (thread_current()->fd_pointers[fd-2])
+      {
+        lock_acquire(&filesys_lock);
+        result = file_write(thread_current()->fd_pointers[fd-2], (void*) string, length);
+        lock_release(&filesys_lock);
+        return result;
+      }
+    }
     //</chiahua>
   }
-  return (int) length;
-}
+  return 0;
+} 
 //</cris, chiahua, connie, sabrina>
 
 
@@ -435,7 +421,9 @@ system_seek(void *stack_pointer)
     pointer = thread_current()->fd_pointers[fd-2];
     if((int)pointer)
     {
+      lock_acquire(&filesys_lock);
       file_seek(pointer, position);
+      lock_release(&filesys_lock);
     }
   }
   //</connie, chiahua>
@@ -446,6 +434,7 @@ unsigned system_tell(void *stack_pointer)
   //<connie, chiahua>
   int fd;
   struct file* pointer;
+  unsigned result;
   
   //get fd from the stack
   stack_pointer = (int*) stack_pointer + 1;
@@ -458,7 +447,10 @@ unsigned system_tell(void *stack_pointer)
     pointer = thread_current()->fd_pointers[fd-2];
     if((int)pointer)
     {
-      return file_tell(pointer);
+      lock_acquire(&filesys_lock);
+      result = file_tell(pointer);
+      lock_release(&filesys_lock);
+      return result;
     }
   }
   //</connie, chiahua>
@@ -482,8 +474,11 @@ void system_close(void *stack_pointer)
     pointer= thread_current()->fd_pointers[fd-2];
     if((int)pointer)
     {
+      lock_acquire(&filesys_lock);
       file_close(pointer);
+      lock_release(&filesys_lock);
       thread_current()->num_open_files --;
+      thread_current()->fd_pointers[fd-2] = NULL;
     }
   }
   //</connie, chiahua>

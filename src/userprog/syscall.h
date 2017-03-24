@@ -3,4 +3,7 @@
 
 void syscall_init (void);
 
-#endif /* userprog/syscall.h */
+void system_exit_helper(int e_status);
+
+
+#endif /*userprog/syscall.h*/ 

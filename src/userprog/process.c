@@ -47,39 +47,16 @@ process_execute (const char *file_name)
   //tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   tid = register_child_with_parent(file_name, PRI_DEFAULT, start_process, 
                                    fn_copy, thread_current());
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
-    
-    
-  // TODO: do child->parent = parent somewhere in this method
-  
-  return tid;
+ 
+  if (tid != TID_ERROR)
+    return tid;
+  else {
+    //palloc_free_page (fn_copy); 
+    return -1;
+  }
+
 }
 
-
-
-
-  //<chiahua>
-  /*
-  for (e = list_begin (&all_list); 
-       e != list_end (&all_list); e = list_next (e))
-  {
-    child_thread = list_entry (e, struct thread, allelem);
-    if (child_thread->tid == tid) 
-    {
-      //found child thread. Register parent with child, add child to parent
-      child_thread->parent = thread_current();
-      struct child *c = palloc_get_page(PAL_ZERO);
-      c->kid = child_thread;
-      list_push_back(&thread_current()->child_list, &c->elem);
-      
-    }
-  }*/
-  //</chiahua> 
-  
-  
-  
-  
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -99,7 +76,9 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
+  {
     thread_exit ();
+  }
   //sema_up (&thread_current()->parent->forking);
 
   /* Start the user process by simulating a return from an
@@ -141,7 +120,9 @@ process_wait (tid_t child_tid)
     if (child_thread->tid == child_tid) 
     {
 
+      //notify child that it is being waited on,
       //block ourself until child is ready to exit
+      child_thread->parent_wait = 1;
       sema_down(&child_thread->block_parent);
       
       //parent woke up, child has exit status ready
@@ -155,47 +136,8 @@ process_wait (tid_t child_tid)
       return stat;
 
     }
-  
-    /*if (stat>=0)
-    {*/
-
-      return stat;
-    //}
-    //return -1;
-    //</chiahua>
-    
   }
-  
-  
-  //<sabrina>
-  //struct thread *parent = thread_current();
-  //struct list_elem *e;
-  //int stat;
-  //struct child *child_node;
-
-  /*//see if child is in status list
-  stat = getStatus(parent, child_tid);
-  if(stat != -1)
-    return stat;
-  
-  //if not in status list, look through child list
-  for (e = list_begin (&parent->child_list); 
-       e != list_end (&parent->child_list); e = list_next (e))
-  {
-    child_node = list_entry (e, struct child, elem);
-    if(child_node->kid->tid == child_tid)
-    {
-      //sema down to block parent
-      sema_down(child_node->kid->block_parent);
-      
-      //parent woke up 
-      stat = getStatus(parent, child_tid);
-      if(stat != -1)
-        return stat;        
-    }
-  }
-  return -1;
-  //</sabrina>*/
+  return stat;
 }
 /* Search the status list and returns exit status of the given child */
 int
@@ -363,15 +305,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   file = filesys_open (fileArg0);
-  //<sabrina>
-  strlcpy (thread_current()->name, fileArg0, sizeof thread_current()->name);
-  //</sabrina>
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", fileArg0);
-      goto done; 
+      thread_current()->tid = -1;
+      goto done;
     }
-
+  //<sabrina>
+  thread_current() -> command_line = file;
+  strlcpy (thread_current()->name, fileArg0, sizeof thread_current()->name);
+  //</sabrina>
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -454,8 +398,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
+ if (success)
+   file_deny_write(file);
+
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //notify parent child finished loading
+  sema_up (&thread_current()->parent->wait_for_load);
+  //file_close (file);
   return success;
 }
 
@@ -586,7 +535,7 @@ setup_stack (void **esp,const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  fn_copy = palloc_get_page (PAL_ZERO);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);

@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "filesys/file.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -110,8 +111,11 @@ struct thread
     struct thread *parent;              /* Pointer to thread's parent */
     struct semaphore block_parent;      /* Semaphore for parent wait */
     struct semaphore block_child;       /* Semaphore to allow parent get stat */
-   struct semaphore forking;       /* Semaphore to wait for child to load */
-
+    struct semaphore wait_for_load;     /* Semaphore to wait for child load */
+    struct file *command_line;           /* Stores the executable file */
+    
+    int parent_wait;                   /* See if there is a waiting parent */
+   
     int exit_status;                    /* Holds exit status from syscall */
     //</chiahua>
     
@@ -185,5 +189,6 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
 
 #endif /* threads/thread.h */

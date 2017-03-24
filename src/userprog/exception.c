@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -158,7 +159,7 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 
   printf("There is no crying in Pintos!\n");
-
-  kill (f);
+  system_exit_helper(-1);
+  //kill (f);
 }
 

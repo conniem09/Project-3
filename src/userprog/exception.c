@@ -1,3 +1,15 @@
+/* Student Information
+ * Chia-Hua Lu              Sabrina Herrero             Connie Chen
+ * CL38755                  SH44786                     CMC5837
+ * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
+ * 52075                    52105                       52105
+ * 
+ * Cristian Martinez
+ * CJM4686
+ * criscubed@gmail.com
+ * 52080
+ */
+
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
@@ -105,7 +117,9 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
+      //<cris>
       thread_exit ();
+      //</cris>
     }
 }
 

@@ -1,3 +1,15 @@
+/* Student Information
+ * Chia-Hua Lu              Sabrina Herrero             Connie Chen
+ * CL38755                  SH44786                     CMC5837
+ * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
+ * 52075                    52105                       52105
+ * 
+ * Cristian Martinez
+ * CJM4686
+ * criscubed@gmail.com
+ * 52080
+ */
+
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -44,7 +56,6 @@ struct kernel_thread_frame
     thread_func *function;      /* Function to call. */
     void *aux;                  /* Auxiliary data for function. */
   };
-
 
 /* Statistics. */
 static long long idle_ticks;    /* # of timer ticks spent idle. */
@@ -149,15 +160,16 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
+/* Custom create_thread that sets new thread's parent */
 tid_t
-register_child_with_parent(const char *name, int priority, 
+register_child_with_parent (const char *name, int priority, 
       thread_func *function, void *aux, struct thread *parent)
 {
-    //<chiahua>
+  //<chiahua>
   struct list_elem *e;
   struct thread *child_thread;
 
-  tid_t tid = thread_create(name, priority, function, aux);  
+  tid_t tid = thread_create (name, priority, function, aux);  
   
   //iterate through the all_list
   for (e = list_begin (&all_list); 
@@ -172,13 +184,13 @@ register_child_with_parent(const char *name, int priority,
       
       //wait for child to finish load. If success, continue registration
       //else, abort registration
-      sema_down (&thread_current()->wait_for_load);
+      sema_down (&thread_current ()->wait_for_load);
       
       if (child_thread->tid == tid)
       {
-        struct child *c = palloc_get_page(PAL_ZERO);
+        struct child *c = palloc_get_page (PAL_ZERO);
         c->kid = child_thread;
-        list_push_back(&thread_current()->child_list, &c->elem);
+        list_push_back (&thread_current ()->child_list, &c->elem);
         break;
       }
     }
@@ -186,8 +198,6 @@ register_child_with_parent(const char *name, int priority,
   return child_thread->tid;
   //</chiahua>     
 }
-  
- 
 
 
 /* Creates a new kernel thread named NAME with the given initial
@@ -226,7 +236,6 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -241,8 +250,6 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-  
-
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -329,27 +336,33 @@ thread_exit (void)
 {
   int index;
   struct file* open_file;
+  struct list_elem *e;
+
+
   ASSERT (!intr_context ());
+  //<cris>
+    file_close (thread_current ()->command_line);
+  //</cris>
   //<chiahua>
-    file_close(thread_current() -> command_line);
-    
+  //if we are parent, we will sema up all remaining children's block_child sema
+  for (e = list_begin (&thread_current ()->child_list); 
+       e != list_end (&thread_current ()->child_list); e = list_next (e))
+  {
+    sema_up (&list_entry (e, struct child, elem)->kid->block_child);
+  }  
   //unblock our parent, then block to wait for parent to fetch status
-  sema_up(&thread_current()->block_parent);
-  sema_down(&thread_current()->block_child);
+  sema_up (&thread_current ()->block_parent);
+  sema_down (&thread_current ()->block_child);
 
   //parent has grabbed our exit status, proceed to die  
 
   //iterate through array fd_pointers, closing any open files
   for (index = 0; index < MAX_FILES; index++) 
   {
-    open_file = thread_current()->fd_pointers[index];
-      file_close(open_file);
+    open_file = thread_current ()->fd_pointers[index];
+      file_close (open_file);
   }
   //</chiahua>
-
-  
-  //<cris>
-  //</cris>
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -359,7 +372,7 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
   
-  list_remove (&thread_current()->allelem);
+  list_remove (&thread_current ()->allelem);
 
   thread_current ()->status = THREAD_DYING;
 
@@ -541,22 +554,21 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->child_list);     
   list_init (&t->status_list);    
   t->parent = NULL;
-  t->parent_wait = 0;
   sema_init (&t->block_parent, 0); 
   sema_init (&t->block_child, 0);
   sema_init (&t->wait_for_load, 0);
   //</chiahua>
   //<sabrina> 
   t->num_open_files = 0;
-  for(i = 0; i < MAX_FILES; i++)
+  for (i = 0; i < MAX_FILES; i++)
   {
       t->fd_pointers[i] = 0;
   }
   //</sabrina>
 
-  old_level = intr_disable();
+  old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
-  intr_set_level(old_level);
+  intr_set_level (old_level);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -1,3 +1,15 @@
+/* Student Information
+ * Chia-Hua Lu              Sabrina Herrero             Connie Chen
+ * CL38755                  SH44786                     CMC5837
+ * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
+ * 52075                    52105                       52105
+ * 
+ * Cristian Martinez
+ * CJM4686
+ * criscubed@gmail.com
+ * 52080
+ */
+
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -25,7 +37,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 //our code
-int getStatus(struct thread *parent, tid_t child_tid);
+int getStatus (struct thread *parent, tid_t child_tid);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -45,8 +57,8 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   //tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  tid = register_child_with_parent(file_name, PRI_DEFAULT, start_process, 
-                                   fn_copy, thread_current());
+  tid = register_child_with_parent (file_name, PRI_DEFAULT, start_process, 
+                                   fn_copy, thread_current ());
  
   if (tid != TID_ERROR)
     return tid;
@@ -54,7 +66,6 @@ process_execute (const char *file_name)
     //palloc_free_page (fn_copy); 
     return -1;
   }
-
 }
 
 /* A thread function that loads a user process and starts it
@@ -119,29 +130,26 @@ process_wait (tid_t child_tid)
     child_thread = child_node->kid;
     if (child_thread->tid == child_tid) 
     {
-
       //notify child that it is being waited on,
       //block ourself until child is ready to exit
-      child_thread->parent_wait = 1;
-      sema_down(&child_thread->block_parent);
+      sema_down (&child_thread->block_parent);
       
       //parent woke up, child has exit status ready
       stat = (int) child_thread->exit_status;     
       
       //remove child node from our children list because it dying
-      list_remove(&child_node->elem);
+      list_remove (&child_node->elem);
       
       //allow child to ded XP
       sema_up (&child_thread->block_child);
       return stat;
-
     }
   }
   return stat;
 }
 /* Search the status list and returns exit status of the given child */
 int
-getStatus(struct thread *parent, tid_t child_tid)
+getStatus (struct thread *parent, tid_t child_tid)
 {
   struct status *status_node;
   struct list_elem *e;
@@ -149,7 +157,7 @@ getStatus(struct thread *parent, tid_t child_tid)
        e != list_end (&parent->status_list); e = list_next (e))
   {
     status_node = list_entry (e, struct status, elem);
-    if(status_node->pid == (int)child_tid)
+    if (status_node->pid == (int) child_tid)
       return status_node->exit_status;
   }
   return -1;
@@ -162,7 +170,6 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -284,17 +291,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //<chiahua>
   char fileArg0[128];
   int copyIndex = 0;
-  while (*(file_name+copyIndex) == ' ')
+  while (*(file_name + copyIndex) == ' ')
   {
     copyIndex++;
   }
   numLeadingSpaces = copyIndex;
-  for ( ; *(file_name+copyIndex) != ' ' 
-       && *(file_name+copyIndex) != '\0'; copyIndex++) 
+  for ( ; *(file_name + copyIndex) != ' ' 
+       && *(file_name + copyIndex) != '\0'; copyIndex++) 
   {
-    fileArg0[copyIndex-numLeadingSpaces] = *(file_name + copyIndex);
+    fileArg0[copyIndex - numLeadingSpaces] = *(file_name + copyIndex);
   }
-  fileArg0[copyIndex-numLeadingSpaces] = '\0';
+  fileArg0[copyIndex - numLeadingSpaces] = '\0';
   //</chiahua>
 
   /* Allocate and activate page directory. */
@@ -309,12 +316,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", fileArg0);
-      thread_current()->tid = -1;
+      thread_current ()->tid = -1;
       goto done;
     }
   //<sabrina>
-  thread_current() -> command_line = file;
-  strlcpy (thread_current()->name, fileArg0, sizeof thread_current()->name);
+  thread_current ()->command_line = file;
+  strlcpy (thread_current ()->name, fileArg0, sizeof thread_current ()->name);
   //</sabrina>
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -399,11 +406,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
  if (success)
-   file_deny_write(file);
+   file_deny_write (file);
 
   /* We arrive here whether the load is successful or not. */
   //notify parent child finished loading
-  sema_up (&thread_current()->parent->wait_for_load);
+  sema_up (&thread_current ()->parent->wait_for_load);
   //file_close (file);
   return success;
 }

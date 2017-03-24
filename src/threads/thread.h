@@ -1,3 +1,15 @@
+/* Student Information
+ * Chia-Hua Lu              Sabrina Herrero             Connie Chen
+ * CL38755                  SH44786                     CMC5837
+ * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
+ * 52075                    52105                       52105
+ * 
+ * Cristian Martinez
+ * CJM4686
+ * criscubed@gmail.com
+ * 52080
+ */
+
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -101,7 +113,6 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     
-
     /* Project 2 code */
     //<sabrina>
     struct file* fd_pointers[MAX_FILES];        /* Array of file pointers */
@@ -112,10 +123,7 @@ struct thread
     struct semaphore block_parent;      /* Semaphore for parent wait */
     struct semaphore block_child;       /* Semaphore to allow parent get stat */
     struct semaphore wait_for_load;     /* Semaphore to wait for child load */
-    struct file *command_line;           /* Stores the executable file */
-    
-    int parent_wait;                   /* See if there is a waiting parent */
-   
+    struct file *command_line;          /* Stores the executable file */
     int exit_status;                    /* Holds exit status from syscall */
     //</chiahua>
     
@@ -165,7 +173,7 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
-tid_t register_child_with_parent(const char *name, int priority,
+tid_t register_child_with_parent (const char *name, int priority,
                thread_func *function, void *aux, struct thread *parent_thread);
 
 void thread_block (void);

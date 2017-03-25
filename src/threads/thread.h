@@ -129,7 +129,6 @@ struct thread
     
     //<cris>
     struct list child_list;             /* a list of children */
-    struct list status_list;            /* a list of children statuses */
     //</cris>
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -150,14 +149,6 @@ struct child
   struct list_elem elem;
 };
 
-//data structure that holds information a child passed after calling exit()
-//to be used for a thread's status_list
-struct status
-{
-  int pid;
-  int exit_status;
-  struct list_elem elem;
-};
 //</cris>
 
 /* If false (default), use round-robin scheduler.

@@ -147,21 +147,7 @@ process_wait (tid_t child_tid)
   }
   return stat;
 }
-/* Search the status list and returns exit status of the given child */
-int
-getStatus (struct thread *parent, tid_t child_tid)
-{
-  struct status *status_node;
-  struct list_elem *e;
-  for (e = list_begin (&parent->status_list); 
-       e != list_end (&parent->status_list); e = list_next (e))
-  {
-    status_node = list_entry (e, struct status, elem);
-    if (status_node->pid == (int) child_tid)
-      return status_node->exit_status;
-  }
-  return -1;
-}
+
 
 /* Free the current process's resources. */
 void
@@ -538,6 +524,7 @@ setup_stack (void **esp,const char *file_name)
   char *my_esp = *esp;
   int x;
   char *temp_esp;
+  int command_line_length;
   
 
   /* Make a copy of FILE_NAME.
@@ -559,9 +546,13 @@ setup_stack (void **esp,const char *file_name)
     }
  
   //<chiahua, cris>
+  //check if the commandline would overflow the stack
+  command_line_length = strlen (fn_copy)+1;
+  if (command_line_length > 4000)
+    return false;
   //move the stack pointer and copy the data into the stack
-  my_esp = my_esp - (strlen (fn_copy)+1);
-  strlcpy (my_esp, fn_copy, strlen (fn_copy)+1);
+  my_esp = my_esp - command_line_length;
+  strlcpy (my_esp, fn_copy, command_line_length);
   //</chiahua, cris>
 
   //<cris>

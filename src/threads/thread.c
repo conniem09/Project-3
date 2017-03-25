@@ -552,7 +552,6 @@ init_thread (struct thread *t, const char *name, int priority)
   //our Project 2 code
   //<chiahua>
   list_init (&t->child_list);     
-  list_init (&t->status_list);    
   t->parent = NULL;
   sema_init (&t->block_parent, 0); 
   sema_init (&t->block_child, 0);

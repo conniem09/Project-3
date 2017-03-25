@@ -145,8 +145,8 @@ struct thread
 //to be used for a thread's child_list
 struct child
 {
-  struct thread *kid;
-  struct list_elem elem;
+  struct thread *kid;                   /* pointer to child thread */
+  struct list_elem elem;                /* List element for child list */
 };
 
 //</cris>

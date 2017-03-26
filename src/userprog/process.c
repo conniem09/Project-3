@@ -33,6 +33,8 @@
 #include "threads/synch.h"
 
 #define ALIGN 4 /* align to multiple of this number */
+#define AVAIL_STACK_SPACE 4084 /* Stack size - bytes needed for ret  
+							address, int argc, and argv[] address */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -550,7 +552,7 @@ setup_stack (void **esp,const char *file_name)
   //<chiahua, cris>
   //check if the commandline would overflow the stack
   command_line_length = strlen (fn_copy)+1;
-  if (command_line_length > 4000)
+  if (command_line_length > AVAIL_STACK_SPACE)
     return false;
   //move the stack pointer and copy the data into the stack
   my_esp = my_esp - command_line_length;
@@ -585,6 +587,13 @@ setup_stack (void **esp,const char *file_name)
     }
   }
   //</cris>
+  
+  // Check if pushing args onto stack would overflow it
+  if (AVAIL_STACK_SPACE - command_line_length < argc * sizeof 
+	  (dataAddresses[0]))
+  {
+    return false;
+  }
 
   //<sabrina>  
   dataAddresses[argc] = NULL;

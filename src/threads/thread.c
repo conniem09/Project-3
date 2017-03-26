@@ -349,10 +349,12 @@ thread_exit (void)
        e != list_end (&thread_current ()->child_list); e = list_next (e))
   {
     sema_up (&list_entry (e, struct child, elem)->kid->block_child);
+    list_entry (e, struct child, elem)->kid->parent = NULL;
   }  
-  //unblock our parent, then block to wait for parent to fetch status
+  //unblock our parent, then block to wait for parent to fetch status if have 1
   sema_up (&thread_current ()->block_parent);
-  sema_down (&thread_current ()->block_child);
+  if (thread_current ()->parent != NULL)
+    sema_down (&thread_current ()->block_child);
 
   //parent has grabbed our exit status, proceed to die  
 

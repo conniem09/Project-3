@@ -60,7 +60,7 @@ process_execute (const char *file_name)
   tid = register_child_with_parent (file_name, PRI_DEFAULT, start_process, 
                                    fn_copy, thread_current ());
  
-  if (tid != TID_ERROR)
+  if (tid != -1)
     return tid;
   else {
     //palloc_free_page (fn_copy); 
@@ -302,7 +302,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", fileArg0);
-      thread_current ()->tid = -1;
       goto done;
     }
   //<sabrina>
@@ -393,7 +392,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
  if (success)
    file_deny_write (file);
-
+   
+  else {
+    thread_current ()->tid = -1;
+  }
   /* We arrive here whether the load is successful or not. */
   //notify parent child finished loading
   sema_up (&thread_current ()->parent->wait_for_load);

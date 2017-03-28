@@ -53,8 +53,11 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
+  if (fn_copy == NULL) 
+  {
+    palloc_free_page (fn_copy);
     return TID_ERROR;
+  }
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -141,6 +144,7 @@ process_wait (tid_t child_tid)
       
       //remove child node from our children list because it dying
       list_remove (&child_node->elem);
+      palloc_free_page(child_node);
       
       //allow child to ded XP
       sema_up (&child_thread->block_child);
@@ -523,7 +527,7 @@ setup_stack (void **esp,const char *file_name)
   //<connie>
   char *fn_copy;
   int argc;
-  char *dataAddresses[32];
+  char *dataAddresses[128];
   int index;
   char *my_esp = *esp;
   int x;
@@ -534,8 +538,11 @@ setup_stack (void **esp,const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (PAL_ZERO);
-  if (fn_copy == NULL)
+  if (fn_copy == NULL) 
+  {
+    //palloc_free_page (fn_copy);
     return TID_ERROR;
+  }
   strlcpy (fn_copy, file_name, PGSIZE);
   //</connie>  
 
@@ -558,6 +565,8 @@ setup_stack (void **esp,const char *file_name)
   my_esp = my_esp - command_line_length;
   strlcpy (my_esp, fn_copy, command_line_length);
   //</chiahua, cris>
+  palloc_free_page(fn_copy);
+
 
   //<cris>
   //counting the number of arguments

@@ -350,6 +350,7 @@ thread_exit (void)
   {
     sema_up (&list_entry (e, struct child, elem)->kid->block_child);
     list_entry (e, struct child, elem)->kid->parent = NULL;
+    palloc_free_page(list_entry (e, struct child, elem));
   }  
   //unblock our parent, then block to wait for parent to fetch status if have 1
   sema_up (&thread_current ()->block_parent);
@@ -364,6 +365,7 @@ thread_exit (void)
     open_file = thread_current ()->fd_pointers[index];
       file_close (open_file);
   }
+  
   //</chiahua>
 #ifdef USERPROG
   process_exit ();

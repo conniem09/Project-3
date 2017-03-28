@@ -255,16 +255,17 @@ system_open (void *stack_pointer)
   for (i = 0; i < MAX_FILES; i++)
   {
     if (cur->fd_pointers[i] == 0)
-      break;
+    {
+        
+      //if valid then put in array
+      cur->fd_pointers[i] = open_file;
+      cur->num_open_files++;
+  
+      //fd is equal to index plus offset of 2 to account for 0 and 1 not available
+      return (i + 2);
+      //</sabrina, cris>
+    }
   }
-  
-  //if valid then put in array
-  cur->fd_pointers[i] = open_file;
-  cur->num_open_files++;
-  
-  //fd is equal to index plus offset of 2 to account for 0 and 1 not available
-  return (i + 2);
-  //</sabrina, cris>
 }
 
 //Returns the size, in bytes, of the file open as fd.

@@ -88,7 +88,6 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -543,7 +542,7 @@ setup_stack (void **esp,const char *file_name)
     //palloc_free_page (fn_copy);
     return TID_ERROR;
   }
-  strlcpy (fn_copy, file_name, PGSIZE);
+  //strlcpy (fn_copy, file_name, PGSIZE);
   //</connie>  
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -555,6 +554,9 @@ setup_stack (void **esp,const char *file_name)
       else
         palloc_free_page (kpage);
     }
+    
+  strlcpy (fn_copy, file_name, PGSIZE);
+  //</connie>  
  
   //<chiahua, cris>
   //check if the commandline would overflow the stack

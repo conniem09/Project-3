@@ -185,8 +185,10 @@ register_child_with_parent (const char *name, int priority,
       //wait for child to finish load. If success, continue registration
       //else, abort registration
       sema_down (&thread_current ()->wait_for_load);
-      
-      if (child_thread->tid == tid)
+      if (child_thread->tid < 0)
+        sema_up (&child_thread->block_child);
+      //if (child_thread->tid == tid)
+      else
       {
         struct child *c = palloc_get_page (PAL_ZERO);
         c->kid = child_thread;
@@ -349,7 +351,7 @@ thread_exit (void)
        e != list_end (&thread_current ()->child_list); e = list_next (e))
   {
     sema_up (&list_entry (e, struct child, elem)->kid->block_child);
-    list_entry (e, struct child, elem)->kid->parent = NULL;
+    //list_entry (e, struct child, elem)->kid->parent = NULL;
     palloc_free_page(list_entry (e, struct child, elem));
   }  
   //unblock our parent, then block to wait for parent to fetch status if have 1
@@ -360,10 +362,16 @@ thread_exit (void)
   //parent has grabbed our exit status, proceed to die  
 
   //iterate through array fd_pointers, closing any open files
-  for (index = 0; index < MAX_FILES; index++) 
+  index = 0;
+  while (index < MAX_FILES && thread_current ()->num_open_files > 0) 
   {
     open_file = thread_current ()->fd_pointers[index];
-      file_close (open_file);
+    if (open_file != NULL)
+    {
+      file_close (open_file); 
+      thread_current ()->num_open_files--;   
+    }
+    index++;
   }
   
   //</chiahua>

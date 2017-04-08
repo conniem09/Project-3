@@ -373,6 +373,9 @@ system_write (void *stack_pointer)
   check_pointer ((void*) stack_pointer);
   length = *(int*) stack_pointer;
 
+  //check the end of the string to make sure its still legal
+  check_pointer ((void*) string + length);
+  
   //if fd is stdin
   if (fd == 0)  
   {

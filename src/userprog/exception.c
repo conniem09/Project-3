@@ -172,8 +172,9 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
 
-  printf("There is no crying in Pintos!\n");
-  system_exit_helper(-1);
+  
+  //printf("There is no crying in Pintos!\n");
+  //system_exit_helper(-1);
   //kill (f);
 }
 

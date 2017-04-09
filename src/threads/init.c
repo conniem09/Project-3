@@ -23,6 +23,7 @@
 #include "threads/pte.h"
 #include "threads/thread.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"

@@ -515,6 +515,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       entry->page_zero_bytes = page_zero_bytes;
       //</Connie>
       //<Chiahua>
+      entry->location = FILESYS;
       page_add (entry);
       //</Chiahua>      
       /* Advance. */

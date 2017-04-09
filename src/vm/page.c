@@ -97,7 +97,7 @@ page_install_to_frame (uint8_t *upage, uint8_t *kpage)
   //</Chiahua>
 }
 
-void page_fault_determiner (void *fault_addr) 
+void page_fault_identifier (void *fault_addr) 
 {
   //<Chiahua>
   struct page srch;
@@ -105,6 +105,7 @@ void page_fault_determiner (void *fault_addr)
   struct hash_elem *target_elem;
   &search->upage = fault_addr;
   target_elem = hash_find(&spt, &srch.hash_element);
+  //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 
   {
     printf("There is crying in Pintos!\n");

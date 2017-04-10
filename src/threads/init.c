@@ -22,8 +22,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
-#include "vm/page.h"
-#include "vm/frame.h"
+#include "vm/frames.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -115,8 +114,9 @@ main (void)
 #ifdef USERPROG
   exception_init ();
   syscall_init ();
-  page_init ();
 #endif
+
+  frame_table_init ();
 
   /* Start thread scheduler and enable interrupts. */
   thread_start ();

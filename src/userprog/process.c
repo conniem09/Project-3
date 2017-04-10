@@ -27,10 +27,12 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "lib/string.h"
 #include "threads/synch.h"
+#include "vm/page.h"
 
 #define ALIGN 4 /* align to multiple of this number */
 #define AVAIL_STACK_SPACE 4084 /* Stack size - bytes needed for ret  
@@ -485,7 +487,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   size_t page_zero_bytes = PGSIZE - page_read_bytes;
   
   //Chiahua>
-  struct page *entry = malloc(sizeOf(struct page));
+  /*struct page *entry = malloc(sizeof(struct page));
   entry->upage = upage;
   entry->file = file;
   entry->page_read_bytes = page_read_bytes;
@@ -494,7 +496,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   page_read_install(upage);
   read_bytes -= page_read_bytes;
   zero_bytes -= page_zero_bytes;
-  upage += PGSIZE;
+  upage += PGSIZE;*/
   //</Chiahua>
   
   while (read_bytes > 0 || zero_bytes > 0) 
@@ -508,7 +510,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       
       //struct page = new page(file, read_bytes, zero_bytes, upage);
       //<Connie>
-      struct page *entry = malloc(sizeOf(struct page));
+      struct page *entry = malloc(sizeof(struct page));
       entry->upage = upage;
       entry->file = file;
       entry->page_read_bytes = page_read_bytes;

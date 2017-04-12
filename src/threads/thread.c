@@ -106,7 +106,6 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  page_init ();
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -254,10 +253,12 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-
+  
   /* Add to run queue. */
   thread_unblock (t);
 
+
+  
   return tid;
 }
 
@@ -562,6 +563,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  
 
   //our Project 2 code
   //<chiahua>

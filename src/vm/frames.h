@@ -1,8 +1,5 @@
-#include "threads/synch.h"
-#include "threads/malloc.h"
-#include "threads/palloc.h"
-#include "userprog/syscall.h"
 
+#include <inttypes.h>
 
 #define TOTAL_PAGES 367
 

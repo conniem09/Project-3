@@ -113,6 +113,9 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     
+    /* Project 3 code */
+    struct hash *spt;
+    
     /* Project 2 code */
     //<sabrina>
     struct file* fd_pointers[MAX_FILES];        /* Array of file pointers */

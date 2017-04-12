@@ -295,6 +295,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
     fileArg0[copyIndex - numLeadingSpaces] = *(file_name + copyIndex);
   }
   fileArg0[copyIndex - numLeadingSpaces] = '\0';
+  
+  //initiate the supplemental page table
+  t->spt = (struct hash*) malloc (sizeof (struct hash));
+  page_init (t->spt);
+  
   //</chiahua>
 
   /* Allocate and activate page directory. */
@@ -504,27 +509,31 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
-      //size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      //size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
       //load and install first page
       
       //struct page = new page(file, read_bytes, zero_bytes, upage);
       //<Connie>
-      struct page *entry = malloc(sizeof(struct page));
+      page *entry = (page*) malloc(sizeof (page));
+      ASSERT(entry != NULL);
       entry->upage = upage;
       entry->file = file;
       entry->page_read_bytes = page_read_bytes;
       entry->page_zero_bytes = page_zero_bytes;
       //</Connie>
       //<Chiahua>
-      entry->location = FILESYS;
+      entry->ofs = ofs;
+      entry->location = IN_FILESYS;
       page_add (entry);
+      printf("\nPage Add %x\n", upage);
       //</Chiahua>      
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-   }
+      //Need to also track ofs file offset for the page entry
+   }   
 
   return true;
 }
@@ -558,7 +567,8 @@ setup_stack (void **esp,const char *file_name)
   //strlcpy (fn_copy, file_name, PGSIZE);
   //</connie>  
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = frame_find_empty ();
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -655,6 +665,12 @@ setup_stack (void **esp,const char *file_name)
   //hex_dump((int) *esp, *esp, PHYS_BASE-*esp, 1);
     
   return success;
+}
+
+bool
+install_page_external (void *upage, void *kpage, bool writable)
+{
+  return install_page (upage, kpage, writable);
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel

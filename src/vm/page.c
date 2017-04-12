@@ -1,14 +1,21 @@
 #include "page.h"
+#include "filesys/file.h"
+#include "threads/malloc.h"
+#include "vm/frames.h"
+#include "userprog/syscall.h"
+#include "lib/string.h"
+#include "userprog/process.h"
+#include "threads/vaddr.h"
 
-struct hash spt;
+//struct hash *spt;
 
 //<Documentation>
 /* Returns a hash value for page p. */
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
-  const struct page *p = hash_entry (p_, struct page, hash_element);
-  return hash_bytes (&p->upage, sizeof (p->upage));
+  page *p = hash_entry (p_, page, hash_element);
+  return hash_int (p->upage);
 }
 
 /* Returns true if page a precedes page b. */
@@ -16,39 +23,37 @@ bool
 page_less (const struct hash_elem *a_, const struct hash_elem *b_,
            void *aux UNUSED)
 {
-  const struct page *a = hash_entry (a_, struct page, hash_element);
-  const struct page *b = hash_entry (b_, struct page, hash_element);
+  const page *a = hash_entry (a_, page, hash_element);
+  const page *b = hash_entry (b_, page, hash_element);
 
   return a->upage < b->upage;
 }
 //</Documentation>
 
 void
-page_init ()
+page_init (struct hash *spt)
 {
-  hash_init (&spt, page_hash, page_less, NULL);
+  hash_init (spt, page_hash, page_less, NULL);
 }
 
 
-struct page * 
-page_add (struct page *entry) 
+page * 
+page_add (page *entry) 
 {
-  
-  
   //<ChiaHua>
-  hash_insert (&spt, entry->hash_element);
+  hash_insert (thread_current ()->spt, &entry->hash_element);
   return entry;
   //</ChiaHua>
 }
 
 void 
-page_change_state (struct page *entry, int state)
+page_change_state (page *entry, int state)
 {
   entry->location = state;
 }
 
 void
-page_read_install (struct page *target)
+page_read_install (page *target)
 {
 //<Connie>
  /* 
@@ -59,16 +64,13 @@ page_read_install (struct page *target)
  */
   //Get a page of memory.  
   uint8_t *kpage = frame_find_empty ();
-  if (kpage == NULL)
-  {
-    //Evict page. Find again
-  }
   // Load this page. 
   //page entry = Page_hash_find(upage virtual address);
   struct file *file = target->file;
   uint8_t *upage = target->upage;
   uint32_t page_read_bytes = target->page_read_bytes;
   uint32_t page_zero_bytes = target->page_zero_bytes;
+  file_seek (file, target->ofs);
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
   {
     frame_free (kpage);
@@ -90,16 +92,16 @@ page_install_to_frame (uint8_t *upage, uint8_t *kpage)
   // Add the page to the process's address space.
   //<Chiahua>
   bool writable = false; //TEMP
-  if (!install_page (upage, kpage, writable)) 
+  if (!install_page_external (upage, kpage, writable)) 
   {
-    page (kpage);
-    return false; 
+    frame_free (kpage);
+    //return false; 
   }
-  struct page srch;
-  struct page *target;
+  page srch;
+  page *target;
   struct hash_elem *target_elem;
   srch.upage = upage;
-  target_elem = hash_find(&spt, &srch.hash_element);
+  target_elem = hash_find(&thread_current ()->spt, &srch.hash_element);
   target->location = IN_FRAME;
   //</Chiahua>
 }
@@ -107,20 +109,24 @@ page_install_to_frame (uint8_t *upage, uint8_t *kpage)
 void page_fault_identifier (void *fault_addr) 
 {
   //<Chiahua>
-  struct page srch;
-  struct page *target;
+  //printf("\nFault Address: %x\n",fault_addr);
+  page srch;
+  page *target;
   struct hash_elem *target_elem;
-  srch.upage = fault_addr;
-  target_elem = hash_find(&spt, &srch.hash_element);
+  srch.upage = pg_round_down (fault_addr) ;
+  target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
   //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 
   {
-    printf("There is crying in Pintos!\n");
+    printf("Requested Page Not in Address Space\n");
+    ASSERT(target_elem!=NULL); //Temp pauser in case of fail
     system_exit_helper(-1);
   }
   else 
   {
-    target = hash_entry (target_elem, struct page, hash_element);
+  
+    target = hash_entry (target_elem, page, hash_element);
+    printf("Location = %d\n", target->location); 
     if (target->location == IN_SWAP)
     {
       //Grab from Swap
@@ -133,11 +139,19 @@ void page_fault_identifier (void *fault_addr)
        page_read_install (target);
        
     }
+    else 
+    {
+              ASSERT(false);
+
+    }
   }
+
   //</Chiahua>
   /*
    * Notes: Be careful of bringing in the wrong data, like, treating code as data or data as code.
    * In thread create, as long as not the main thread, initialise supplemental page table entry?
+   * 
+   * Writable: Make it so you can't overwrite your code pages. 
    */
   
 }

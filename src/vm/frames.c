@@ -1,5 +1,8 @@
-
 #include "vm/frames.h"
+#include "userprog/syscall.h"
+#include "threads/synch.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
 
 struct lock lock;
 /* Array of frame_table_elems */
@@ -13,13 +16,14 @@ frame_table_init ()
 { 
   occupancy = 0;
   int i = 0;
-  struct frame_table_elem *x = malloc(sizeof (struct frame_table_elem));
+  struct frame_table_elem *x = NULL;
   do
   {
+	x = (struct frame_table_elem * ) malloc (sizeof (struct frame_table_elem));
     //initiate the frame_table_elem
-    frame_table[i]->kpage = palloc_get_page(PAL_USER);
-    frame_table[i]->upage = NULL;
-    frame_table[i]->pagedir = NULL;
+    x->kpage = palloc_get_page(PAL_USER);
+	x->upage = NULL;
+    x->pagedir = NULL;
     
     //add the frame_table_elem to the array
     frame_table[i] = x;
@@ -38,6 +42,7 @@ frame_free (uint8_t *kpage)
 	  if (frame_table[i]->kpage == NULL)
 	  {
 		frame_table[i]->upage = NULL;
+		occupancy--;
 	  }
 	}
 }
@@ -60,8 +65,9 @@ frame_find_empty ()
   }
   else
   {
-    //printf ("No Additional Available Frames\n");
+    printf ("Evict. No Additional Available Frames\n");
     system_exit_helper(-1);
+    ASSERT(false);
     return NULL;
     //i = evict();
   }

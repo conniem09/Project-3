@@ -74,34 +74,28 @@ page_read_install (page *target)
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
   {
     frame_free (kpage);
-    //return false; 
-    system_exit_helper(-1);
+    //return false;
+    system_exit_helper(-31);
   }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
   //</Connie>
   //<Chiahua>
-  page_install_to_frame(upage, kpage);
+  page_install_to_frame(target, upage, kpage);
   //</Chiahua>
 }
 
 void
-page_install_to_frame (uint8_t *upage, uint8_t *kpage)
+page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage)
 {
-	
-	
   // Add the page to the process's address space.
   //<Chiahua>
-  bool writable = false; //TEMP
-  if (!install_page_external (upage, kpage, writable)) 
+  bool writable = target->writable;
+  if (!frame_install (upage, kpage, writable)) 
   {
     frame_free (kpage);
-    //return false; 
+    system_exit_helper(-11);
   }
-  page srch;
-  page *target;
-  struct hash_elem *target_elem;
-  srch.upage = upage;
-  target_elem = hash_find(&thread_current ()->spt, &srch.hash_element);
+  
   target->location = IN_FRAME;
   //</Chiahua>
 }
@@ -118,9 +112,8 @@ void page_fault_identifier (void *fault_addr)
   //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 
   {
-    printf("Requested Page Not in Address Space\n");
-    ASSERT(target_elem!=NULL); //Temp pauser in case of fail
-    system_exit_helper(-1);
+    printf("Segmentation Fault\n");
+    system_exit_helper(-91);
   }
   else 
   {
@@ -137,12 +130,11 @@ void page_fault_identifier (void *fault_addr)
        //Read from filesys
        //Install Page 
        page_read_install (target);
-       
     }
     else 
     {
-              ASSERT(false);
-
+      //Should not get here
+      ASSERT(false);
     }
   }
 

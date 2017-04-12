@@ -108,7 +108,7 @@ syscall_handler (struct intr_frame *f)
       break;
     //Invalid system call  
     default:              
-      system_exit_helper (-1);
+      system_exit_helper (-6);
   }
   //</cris, connie, chiahua, sabrina>  
   
@@ -503,7 +503,7 @@ void check_pointer (void* pointer)
 {
   if(pointer == NULL || is_kernel_vaddr(pointer) || !pagedir_get_page (thread_current() -> pagedir, pointer))
   {
-    system_exit_helper (-1);
+    system_exit_helper (-3);
   }
 }
 //</cris>

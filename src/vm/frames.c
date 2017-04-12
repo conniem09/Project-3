@@ -39,12 +39,34 @@ frame_free (uint8_t *kpage)
 	int i;
 	for (i = 0; i < TOTAL_PAGES; i++)
 	{
-	  if (frame_table[i]->kpage == NULL)
+	  if (frame_table[i]->kpage == kpage)
 	  {
 		frame_table[i]->upage = NULL;
 		occupancy--;
 	  }
 	}
+}
+
+bool
+frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
+{
+	bool success = install_page_external (upage, kpage, writable);
+	if (success) 
+	{
+		int i;
+		for (i = 0; i < TOTAL_PAGES; i++)
+		{
+		  if (frame_table[i]->kpage == kpage)
+		  {
+			if (frame_table[i]->upage != NULL)
+			  system_exit_helper(-111);
+				
+			frame_table[i]->upage = upage;
+			occupancy++;
+		  }
+		}
+	}
+		return success;		
 }
 
 //<cris>
@@ -66,7 +88,7 @@ frame_find_empty ()
   else
   {
     printf ("Evict. No Additional Available Frames\n");
-    system_exit_helper(-1);
+    system_exit_helper(-17);
     ASSERT(false);
     return NULL;
     //i = evict();

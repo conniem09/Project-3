@@ -174,13 +174,20 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   */
+  printf("\n%x\n", fault_addr);
   if (fault_addr == NULL)
   {
     printf("There is no crying in Pintos!\n");
-    system_exit_helper(-1);
+    system_exit_helper(-52);
   } else
-    page_fault_identifier (fault_addr);
-  
+    if (not_present)
+      page_fault_identifier (fault_addr);
+  else 
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
   //kill (f);
 }
 

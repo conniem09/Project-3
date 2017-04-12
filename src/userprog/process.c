@@ -383,7 +383,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
               if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
+                                 read_bytes, zero_bytes, true))
                 goto done;
             }
           else
@@ -521,19 +521,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       entry->file = file;
       entry->page_read_bytes = page_read_bytes;
       entry->page_zero_bytes = page_zero_bytes;
+      entry->writable = writable;
       //</Connie>
       //<Chiahua>
       entry->ofs = ofs;
       entry->location = IN_FILESYS;
       page_add (entry);
-      printf("\nPage Add %x\n", upage);
       //</Chiahua>      
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-      //Need to also track ofs file offset for the page entry
-   }   
+    }   
 
   return true;
 }
@@ -571,13 +570,17 @@ setup_stack (void **esp,const char *file_name)
   kpage = frame_find_empty ();
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = frame_install (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         my_esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+      {
+        frame_free (kpage);
+        system_exit_helper(-102);
+      }
     }
-    
+    else 
+      system_exit_helper(-6);
   strlcpy (fn_copy, file_name, PGSIZE);
   //</connie>  
  

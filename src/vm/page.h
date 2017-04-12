@@ -13,7 +13,7 @@ typedef struct page_t
 {
   uint8_t *upage;
   struct file *file;
-
+  bool writable;
   struct hash_elem hash_element;
   size_t page_read_bytes;
   size_t page_zero_bytes;    
@@ -29,7 +29,7 @@ bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 page * page_add (page *entry);
 void page_change_state (page *entry, int state);
 void page_read_install (page *target);
-void page_install_to_frame (uint8_t *upage, uint8_t *kpage);
+void page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage);
 void page_fault_identifier (void *fault_addr); 
 
 #endif

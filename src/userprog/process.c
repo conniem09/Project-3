@@ -504,10 +504,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       page *entry = page_build(upage, file, writable, page_read_bytes, 
                               page_zero_bytes, IN_FILESYS, ofs);
       page_add (entry);
-      //</Chiahua, Chiahua>      
+      //</Connie, Chiahua>      
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+      //<cris>
+      ofs += PGSIZE; 
+	  //</cris>
       upage += PGSIZE;
     }   
 

@@ -174,7 +174,9 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   */
-  printf("\n%x\n", fault_addr);
+  
+  // **************************************************
+  // printf("\n%x\n", fault_addr);
   if (fault_addr == NULL)
   {
     printf("There is no crying in Pintos!\n");

@@ -126,7 +126,8 @@ void page_fault_identifier (void *fault_addr)
   page *target;
   struct hash_elem *target_elem;
   srch.upage = pg_round_down (fault_addr);
-  printf("\nFault Address: %x\n",srch.upage);
+  // **************************************************
+  //printf("\nFault Address: %x\n",srch.upage);
   target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
   //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 
@@ -138,7 +139,8 @@ void page_fault_identifier (void *fault_addr)
   {
   
     target = hash_entry (target_elem, page, hash_element);
-    printf("Location = %d\n", target->location); 
+    // **************************************************
+    // printf("Location = %d\n", target->location); 
     if (target->location == IN_SWAP)
     {
       //Grab from Swap

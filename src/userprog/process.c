@@ -33,6 +33,8 @@
 #include "lib/string.h"
 #include "threads/synch.h"
 #include "vm/page.h"
+#include "userprog/syscall.h"
+#include "vm/frames.h"
 
 #define ALIGN 4 /* align to multiple of this number */
 #define AVAIL_STACK_SPACE 4084 /* Stack size - bytes needed for ret  
@@ -383,7 +385,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
               if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, true))
+                                 read_bytes, zero_bytes, writable))
                 goto done;
             }
           else
@@ -486,13 +488,36 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
-  
-  size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-  size_t page_zero_bytes = PGSIZE - page_read_bytes;
+  file_seek (file, ofs); 
+
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+   /* Calculate how to fill this page.
+      We will read PAGE_READ_BYTES bytes from FILE
+      and zero the final PAGE_ZERO_BYTES bytes. */
+         
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      
+      //<Connie, Chiahua>
+      //build the page and add it to the frame table. 
+      page *entry = page_build(upage, file, writable, page_read_bytes, 
+                              page_zero_bytes, IN_FILESYS, ofs);
+      page_add (entry);
+      //</Chiahua, Chiahua>      
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+    }   
+
+  return true;
+}
+
+/* ********************************************************************
   
   //Chiahua>
-  /*struct page *entry = malloc(sizeof(struct page));
+  struct page *entry = malloc(sizeof(struct page));
   entry->upage = upage;
   entry->file = file;
   entry->page_read_bytes = page_read_bytes;
@@ -504,38 +529,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   upage += PGSIZE;*/
   //</Chiahua>
   
-  while (read_bytes > 0 || zero_bytes > 0) 
-    {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-      //load and install first page
-      
-      //struct page = new page(file, read_bytes, zero_bytes, upage);
-      //<Connie>
-      page *entry = (page*) malloc(sizeof (page));
-      ASSERT(entry != NULL);
-      entry->upage = upage;
-      entry->file = file;
-      entry->page_read_bytes = page_read_bytes;
-      entry->page_zero_bytes = page_zero_bytes;
-      entry->writable = writable;
-      //</Connie>
-      //<Chiahua>
-      entry->ofs = ofs;
-      entry->location = IN_FILESYS;
-      page_add (entry);
-      //</Chiahua>      
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
-    }   
-
-  return true;
-}
+  
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
@@ -570,7 +564,11 @@ setup_stack (void **esp,const char *file_name)
   kpage = frame_find_empty ();
   if (kpage != NULL) 
     {
-      success = frame_install (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      page *entry = page_build (((uint8_t *) PHYS_BASE) - PGSIZE, 0, true, 0,
+                                0, IN_FRAME, 0);
+      page_add(entry);
+      success = page_install_to_frame (entry, entry->upage, kpage);
+      //success = frame_install (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         my_esp = PHYS_BASE;
       else

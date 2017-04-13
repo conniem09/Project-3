@@ -108,7 +108,7 @@ syscall_handler (struct intr_frame *f)
       break;
     //Invalid system call  
     default:              
-      system_exit_helper (-6);
+      system_exit_helper (-9);
   }
   //</cris, connie, chiahua, sabrina>  
   

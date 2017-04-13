@@ -19,10 +19,10 @@ frame_table_init ()
   struct frame_table_elem *x = NULL;
   do
   {
-	x = (struct frame_table_elem * ) malloc (sizeof (struct frame_table_elem));
     //initiate the frame_table_elem
+    x = (struct frame_table_elem * ) malloc (sizeof (struct frame_table_elem));
     x->kpage = palloc_get_page(PAL_USER);
-	x->upage = NULL;
+    x->upage = NULL;
     x->pagedir = NULL;
     
     //add the frame_table_elem to the array
@@ -33,10 +33,13 @@ frame_table_init ()
 }
 //</cris>
 
+//<chiahua, cris>
+//labels a frame as available 
 void
 frame_free (uint8_t *kpage)
 {
 	int i;
+  //iterate through all pages
 	for (i = 0; i < TOTAL_PAGES; i++)
 	{
 	  if (frame_table[i]->kpage == kpage)
@@ -47,27 +50,34 @@ frame_free (uint8_t *kpage)
 	}
 }
 
+//install a virtual page into a physical page
 bool
 frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
 {
+  //Move the upage to the kpage
 	bool success = install_page_external (upage, kpage, writable);
 	if (success) 
 	{
 		int i;
+    //find the kpage that we installed to
 		for (i = 0; i < TOTAL_PAGES; i++)
 		{
 		  if (frame_table[i]->kpage == kpage)
 		  {
-			if (frame_table[i]->upage != NULL)
-			  system_exit_helper(-111);
-				
-			frame_table[i]->upage = upage;
-			occupancy++;
+        //upage at this point should be null
+        if (frame_table[i]->upage != NULL)
+        {
+          system_exit_helper(-111);
+        }
+        //update frame table metadata
+        frame_table[i]->upage = upage;
+        occupancy++;
 		  }
 		}
 	}
-		return success;		
+  return success;		
 }
+//</chiahua, cris>
 
 //<cris>
 //find an unoccupied frame
@@ -87,6 +97,7 @@ frame_find_empty ()
   }
   else
   {
+    //NO EVICTION ALGORITHM IN PLACE YET.
     printf ("Evict. No Additional Available Frames\n");
     system_exit_helper(-17);
     ASSERT(false);
@@ -97,6 +108,14 @@ frame_find_empty ()
 }
 //</cris>
 
+
+
+
+
+
+
+
+/* *******************************************************
 //<chiahua>
 /*struct frame_table_elem
 frame_get_index_by_virtual()
@@ -111,4 +130,4 @@ frame_get_index_by_virtual()
 //</chiahua>
 
 
-//Need a method for installing things into frame
+

@@ -30,41 +30,58 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 }
 //</Documentation>
 
+//<chiahua>
+//initiate the supplemental page table. 
 void
 page_init (struct hash *spt)
 {
+  //(the SPT is actually just a hashtable, thats it)
   hash_init (spt, page_hash, page_less, NULL);
 }
 
-
+// add a page to the supplemental page table. 
 page * 
 page_add (page *entry) 
 {
-  //<ChiaHua>
   hash_insert (thread_current ()->spt, &entry->hash_element);
   return entry;
-  //</ChiaHua>
 }
 
+//?????????????????????????????????????????????????????????????????????????????
 void 
 page_change_state (page *entry, int state)
 {
   entry->location = state;
 }
+//</chiahua>
+
+//<cris>
+page * 
+page_build(uint8_t *upage, struct file *file, bool writable, 
+           size_t page_read_bytes, size_t page_zero_bytes, int location, 
+           unsigned ofs)
+{
+      page *entry = (page*) malloc(sizeof (page));
+      ASSERT(entry != NULL);
+      entry->upage = upage;
+      entry->file = file;
+      entry->page_read_bytes = page_read_bytes;
+      entry->page_zero_bytes = page_zero_bytes;
+      entry->writable = writable;
+      entry->ofs = ofs;
+      entry->location = location;
+      return entry; 
+}
+//</cris>
 
 void
 page_read_install (page *target)
 {
-//<Connie>
- /* 
- * during a page fault,
- * find the faulting upage
- * 
- * load it and install it like below
- */
-  //Get a page of memory.  
+  //<Connie>
+  
+  //Find an empty frame to intall to
   uint8_t *kpage = frame_find_empty ();
-  // Load this page. 
+  
   //page entry = Page_hash_find(upage virtual address);
   struct file *file = target->file;
   uint8_t *upage = target->upage;
@@ -74,7 +91,6 @@ page_read_install (page *target)
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
   {
     frame_free (kpage);
-    //return false;
     system_exit_helper(-31);
   }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -84,30 +100,33 @@ page_read_install (page *target)
   //</Chiahua>
 }
 
-void
+bool
 page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage)
 {
-  // Add the page to the process's address space.
+  // Add the page to physical address space.
   //<Chiahua>
   bool writable = target->writable;
-  if (!frame_install (upage, kpage, writable)) 
+  bool success = frame_install (upage, kpage, writable);
+  if (!success) 
   {
     frame_free (kpage);
     system_exit_helper(-11);
   }
   
   target->location = IN_FRAME;
+  return success;
   //</Chiahua>
 }
 
 void page_fault_identifier (void *fault_addr) 
 {
   //<Chiahua>
-  //printf("\nFault Address: %x\n",fault_addr);
+  
   page srch;
   page *target;
   struct hash_elem *target_elem;
-  srch.upage = pg_round_down (fault_addr) ;
+  srch.upage = pg_round_down (fault_addr);
+  printf("\nFault Address: %x\n",srch.upage);
   target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
   //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 

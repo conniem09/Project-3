@@ -115,6 +115,7 @@ struct thread
     
     /* Project 3 code */
     struct hash *spt;
+    void *esp;
     
     /* Project 2 code */
     //<sabrina>

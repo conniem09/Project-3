@@ -3,6 +3,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "userprog/process.h"
 
 struct lock lock;
 /* Array of frame_table_elems */
@@ -16,6 +17,7 @@ frame_table_init ()
 { 
   occupancy = 0;
   int i = 0;
+  lock_init (&lock);
   struct frame_table_elem *x = NULL;
   do
   {
@@ -38,6 +40,7 @@ frame_table_init ()
 void
 frame_free (uint8_t *kpage)
 {
+  lock_acquire (&lock);
 	int i;
   //iterate through all pages
 	for (i = 0; i < TOTAL_PAGES; i++)
@@ -48,12 +51,14 @@ frame_free (uint8_t *kpage)
 		occupancy--;
 	  }
 	}
+  lock_release (&lock);
 }
 
 //install a virtual page into a physical page
 bool
 frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
 {
+  lock_acquire (&lock);
   //Move the upage to the kpage
 	bool success = install_page_external (upage, kpage, writable);
 	if (success) 
@@ -67,7 +72,8 @@ frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
         //upage at this point should be null
         if (frame_table[i]->upage != NULL)
         {
-          system_exit_helper(-111);
+          lock_release (&lock);
+          system_exit_helper(-1);
         }
         //update frame table metadata
         frame_table[i]->upage = upage;
@@ -75,6 +81,7 @@ frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
 		  }
 		}
 	}
+  lock_release (&lock);
   return success;		
 }
 //</chiahua, cris>
@@ -84,6 +91,7 @@ frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
 uint8_t * 
 frame_find_empty ()
 {
+  lock_acquire (&lock);
   int i;
   if (occupancy < TOTAL_PAGES)
   {
@@ -91,6 +99,7 @@ frame_find_empty ()
     {
       if (frame_table[i]-> upage == NULL)
       {
+        lock_release (&lock);
         return frame_table[i]->kpage;
       }
     }
@@ -98,12 +107,14 @@ frame_find_empty ()
   else
   {
     //NO EVICTION ALGORITHM IN PLACE YET.
-    printf ("Evict. No Additional Available Frames\n");
-    system_exit_helper(-17);
+    //printf ("Evict. No Additional Available Frames\n");
+    lock_release (&lock);
+    system_exit_helper(-1);
     ASSERT(false);
     return NULL;
     //i = evict();
   }
+  lock_release (&lock);
   return NULL;
 }
 //</cris>

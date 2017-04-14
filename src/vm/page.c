@@ -15,7 +15,7 @@ unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
   page *p = hash_entry (p_, page, hash_element);
-  return hash_int (p->upage);
+  return hash_int ((int)p->upage);
 }
 
 /* Returns true if page a precedes page b. */
@@ -91,7 +91,7 @@ page_read_install (page *target)
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
   {
     frame_free (kpage);
-    system_exit_helper(-31);
+    system_exit_helper(-1);
   }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
   //</Connie>
@@ -110,7 +110,7 @@ page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage)
   if (!success) 
   {
     frame_free (kpage);
-    system_exit_helper(-11);
+    system_exit_helper(-1);
   }
   
   target->location = IN_FRAME;
@@ -132,8 +132,8 @@ void page_fault_identifier (void *fault_addr)
   //Not part of our virtual address space. Segmentation Fault
   if (target_elem == NULL) 
   {
-    printf("Segmentation Fault\n");
-    system_exit_helper(-91);
+   // printf("Segmentation Fault\n");
+    system_exit_helper(-1);
   }
   else 
   {

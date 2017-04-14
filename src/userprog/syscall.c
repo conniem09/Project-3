@@ -59,12 +59,14 @@ syscall_handler (struct intr_frame *f)
   //<cris, connie, chiahua, sabrina>
   void *stack_pointer =  (void*) f->esp;
   
+  //update the stack pointer in the current running thread
+  thread_current() -> esp = stack_pointer;
+  
   //check the stack pointer to make sure it is not NULL and in user memory
   check_pointer (stack_pointer);
   
   //save syscall_number which is at the top of the stack
   int syscall_number = *(int*) stack_pointer;
-  //debug_print((char*)stack_pointer, 40);
   switch (syscall_number)
   {
     case SYS_HALT:
@@ -108,11 +110,9 @@ syscall_handler (struct intr_frame *f)
       break;
     //Invalid system call  
     default:              
-      system_exit_helper (-9);
+      system_exit_helper (-1);
   }
   //</cris, connie, chiahua, sabrina>  
-  
-  //thread_exit ();
 }
 
 void 
@@ -501,7 +501,7 @@ void system_close (void *stack_pointer)
 //<cris>
 void check_pointer (void* pointer)
 {
-  if(pointer == NULL || is_kernel_vaddr(pointer) || !pagedir_get_page (thread_current() -> pagedir, pointer))
+  if(pointer == NULL || is_kernel_vaddr(pointer) /*|| !pagedir_get_page (thread_current() -> pagedir, pointer)*/)
   {
     system_exit_helper (-1);
   }

@@ -124,8 +124,9 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   if (pages == NULL || page_cnt == 0)
     return;
 
-  if (page_from_pool (&kernel_pool, pages))
+  if (page_from_pool (&kernel_pool, pages)){
     pool = &kernel_pool;
+  }
   else if (page_from_pool (&user_pool, pages))
     pool = &user_pool;
   else

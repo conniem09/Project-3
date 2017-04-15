@@ -12,6 +12,7 @@
 typedef struct page_t
 {
   uint8_t *upage;
+  uint8_t *kpage;
   struct file *file;
   bool writable;
   struct hash_elem hash_element;
@@ -23,6 +24,7 @@ typedef struct page_t
 
 
 void page_init (struct hash *spt);
+void page_clear_all (void);
 unsigned page_hash (const struct hash_elem *p_, void *aux);
 bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
                 void *aux);

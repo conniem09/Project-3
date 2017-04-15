@@ -7,7 +7,6 @@
 #include "userprog/process.h"
 #include "threads/vaddr.h"
 
-//struct hash *spt;
 
 //<Documentation>
 /* Returns a hash value for page p. */
@@ -47,13 +46,26 @@ page_add (page *entry)
   return entry;
 }
 
-//?????????????????????????????????????????????????????????????????????????????
 void 
-page_change_state (page *entry, int state)
+page_clear_all ()
 {
-  entry->location = state;
+  struct hash_iterator i;
+  struct hash *spt = thread_current ()->spt;
+  page *p;
+  hash_first (&i, spt);
+  while (hash_next (&i))
+  {
+    p = hash_entry (hash_cur (&i), page, hash_element);
+      if (p->location == IN_FRAME)
+      {
+        frame_free (p->kpage);
+        p->kpage = NULL;
+        p->location = 0;
+      }
+  }
 }
 //</chiahua>
+
 
 //<cris>
 page * 
@@ -70,6 +82,7 @@ page_build(uint8_t *upage, struct file *file, bool writable,
       entry->writable = writable;
       entry->ofs = ofs;
       entry->location = location;
+      entry->kpage = NULL;
       return entry; 
 }
 //</cris>
@@ -114,6 +127,7 @@ page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage)
   }
   
   target->location = IN_FRAME;
+  target->kpage = kpage;
   return success;
   //</Chiahua>
 }

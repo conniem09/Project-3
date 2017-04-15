@@ -344,7 +344,7 @@ thread_exit (void)
 
   ASSERT (!intr_context ());
   //<cris>
-    file_close (thread_current ()->command_line);
+  file_close (thread_current ()->command_line);
   //</cris>
   //<chiahua>
   //if we are parent, we will sema up all remaining children's block_child sema
@@ -374,20 +374,26 @@ thread_exit (void)
     }
     index++;
   }
+  //28.6
   
   //</chiahua>
 #ifdef USERPROG
   process_exit ();
 #endif
-
+  page_clear_all ();
+  
+  
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+     //28.6
   intr_disable ();
   
+  //28.6
   list_remove (&thread_current ()->allelem);
-
+   //28.6
   thread_current ()->status = THREAD_DYING;
+  //26
 
   schedule ();
   NOT_REACHED ();

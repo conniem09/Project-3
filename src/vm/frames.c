@@ -45,10 +45,11 @@ frame_free (uint8_t *kpage)
   //iterate through all pages
 	for (i = 0; i < TOTAL_PAGES; i++)
 	{
+    //label the current kpage as available
 	  if (frame_table[i]->kpage == kpage)
 	  {
-		frame_table[i]->upage = NULL;
-		occupancy--;
+      frame_table[i]->upage = NULL;
+      occupancy--;
 	  }
 	}
   lock_release (&lock);

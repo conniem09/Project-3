@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 #include "vm/page.h"
+#include "vm/frames.h"
+
 #include "threads/vaddr.h"
 
 /* Number of page faults processed. */

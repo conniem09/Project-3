@@ -261,7 +261,8 @@ system_open (void *stack_pointer)
       cur->fd_pointers[i] = open_file;
       cur->num_open_files++;
   
-      //fd is equal to index plus offset of 2 to account for 0 and 1 not available
+      //fd is equal to index plus offset of 2 
+      //to account for 0 and 1 not available
       return (i + 2);
       //</sabrina, cris>
     }
@@ -400,7 +401,8 @@ system_write (void *stack_pointer)
       if (thread_current ()->fd_pointers[fd - 2])
       {
         lock_acquire (&filesys_lock);
-        result = file_write (thread_current ()->fd_pointers[fd - 2], (void*) string, length);
+        result = file_write (thread_current ()->fd_pointers[fd - 2], 
+                            (void*) string, length);
         lock_release (&filesys_lock);
         return result;
       }
@@ -501,7 +503,8 @@ void system_close (void *stack_pointer)
 //<cris>
 void check_pointer (void* pointer)
 {
-  if(pointer == NULL || is_kernel_vaddr(pointer) /*|| !pagedir_get_page (thread_current() -> pagedir, pointer)*/)
+  if(pointer == NULL || is_kernel_vaddr(pointer) /*|| 
+    !pagedir_get_page (thread_current() -> pagedir, pointer)*/)
   {
     system_exit_helper (-1);
   }

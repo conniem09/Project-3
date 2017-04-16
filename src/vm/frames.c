@@ -4,11 +4,13 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "userprog/process.h"
+#include "userprog/pagedir.h"
 
 struct lock lock;
 /* Array of frame_table_elems */
 struct frame_table_elem *frame_table[TOTAL_PAGES];
 int occupancy;
+int clock_pointer;
 
 //<cris>
 //initiates the frame table
@@ -16,6 +18,7 @@ void
 frame_table_init () 
 { 
   occupancy = 0;
+  clock_pointer = 0;
   int i = 0;
   lock_init (&lock);
   struct frame_table_elem *x = NULL;
@@ -26,6 +29,7 @@ frame_table_init ()
     x->kpage = palloc_get_page(PAL_USER);
     x->upage = NULL;
     x->pagedir = NULL;
+    x->page_pointer =NULL;
     
     //add the frame_table_elem to the array
     frame_table[i] = x;
@@ -49,6 +53,8 @@ frame_free (uint8_t *kpage)
 	  if (frame_table[i]->kpage == kpage)
 	  {
       frame_table[i]->upage = NULL;
+      frame_table[i]->pagedir = NULL;
+      frame_table[i]->page_pointer = NULL;
       occupancy--;
 	  }
 	}
@@ -57,7 +63,8 @@ frame_free (uint8_t *kpage)
 
 //install a virtual page into a physical page
 bool
-frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
+frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
+                page *page_pointer)
 {
   lock_acquire (&lock);
   //Move the upage to the kpage
@@ -78,6 +85,8 @@ frame_install (uint8_t *upage, uint8_t *kpage, bool writable)
         }
         //update frame table metadata
         frame_table[i]->upage = upage;
+        frame_table[i]->pagedir = pagedir;
+        frame_table[i]->page_pointer = page_pointer;
         occupancy++;
 		  }
 		}
@@ -107,39 +116,45 @@ frame_find_empty ()
   }
   else
   {
-    //NO EVICTION ALGORITHM IN PLACE YET.
     //printf ("Evict. No Additional Available Frames\n");
+    uint8_t *result = frame_evict();
     lock_release (&lock);
-    system_exit_helper(-1);
-    ASSERT(false);
-    return NULL;
-    //i = evict();
+    return result;
   }
   lock_release (&lock);
   return NULL;
 }
-//</cris>
 
-
-
-
-
-
-
-
-/* *******************************************************
-//<chiahua>
-/*struct frame_table_elem
-frame_get_index_by_virtual()
+uint8_t*
+frame_evict ()
 {
-  int index;
-  for (index = 0; index < TOTAL_PAGES; index++)
-  {
-    
+  uint8_t* result = NULL;
+  bool found = false;
+  while(!found){
+    if(pagedir_is_accessed (frame_table[clock_pointer] ->pagedir, 
+       frame_table[clock_pointer]->upage) == 0)
+    {
+      found = true;
+      swap_write(frame_table[clock_pointer]->upage, 
+                 frame_table[clock_pointer]->page_pointer);
+      frame_table[clock_pointer]->upage = NULL;
+      frame_table[clock_pointer]->pagedir = NULL;
+      frame_table[clock_pointer]->page_pointer->location = IN_SWAP;
+      frame_table[clock_pointer]->page_pointer = NULL;
+      occupancy--;
+      result = frame_table[clock_pointer]->kpage;
+    }
+    else
+    {
+      pagedir_set_accessed (frame_table[clock_pointer] ->pagedir, 
+       frame_table[clock_pointer]->upage, 0); 
+    }
+    clock_pointer++;
+    if(clock_pointer == TOTAL_PAGES)
+    {
+      clock_pointer = 0;
+    }
   }
-  return NULL;
-}*/
-//</chiahua>
-
-
-
+  return result;
+}
+//</cris>

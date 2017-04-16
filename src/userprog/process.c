@@ -502,7 +502,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //<Connie, Chiahua>
       //build the page and add it to the frame table. 
       page *entry = page_build(upage, file, writable, page_read_bytes, 
-                              page_zero_bytes, IN_FILESYS, ofs);
+                              page_zero_bytes, IN_FILESYS, ofs, 
+                              thread_current()->pagedir);
       page_add (entry);
       //</Connie, Chiahua>      
       /* Advance. */
@@ -568,10 +569,10 @@ setup_stack (void **esp,const char *file_name)
   if (kpage != NULL) 
     {
       page *entry = page_build (((uint8_t *) PHYS_BASE) - PGSIZE, 0, true, 0,
-                                0, IN_FRAME, 0);
+                                0, IN_FRAME, 0, thread_current()->pagedir);
       page_add(entry);
-      success = page_install_to_frame (entry, entry->upage, kpage);
-      //success = frame_install (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = page_install_to_frame (entry, entry->upage, kpage, 
+                                       entry->pagedir);
       if (success)
         my_esp = PHYS_BASE;
       else

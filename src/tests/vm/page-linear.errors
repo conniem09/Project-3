@@ -1,0 +1,2 @@
+Use of literal control characters in variable names is deprecated at /lusr/opt/pintos/pintos line 913.
+tests/vm/page-linear: stat: No such file or directory

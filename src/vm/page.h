@@ -3,6 +3,7 @@
 #define INC_PAGEH
 
 #include <inttypes.h>
+#include "devices/block.h"
 #include "lib/kernel/hash.h"
 
 #define IN_FRAME  1        /* Page is in Page Frame */
@@ -19,7 +20,9 @@ typedef struct page_t
   size_t page_read_bytes;
   size_t page_zero_bytes;    
   int location;
+  block_sector_t swap_location;
   unsigned ofs;
+  uint32_t *pagedir;
 } page;
 
 
@@ -31,10 +34,11 @@ bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 page * page_add (page *entry);
 page * page_build(uint8_t *upage, struct file *file, bool writable, 
                   size_t page_read_bytes, size_t page_zero_bytes, int location, 
-                  unsigned ofs);
+                  unsigned ofs, uint32_t *pagedir);
 void page_change_state (page *entry, int state);
 void page_read_install (page *target);
-bool page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage);
+bool page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage, 
+                            uint32_t *pagedir);
 void page_fault_identifier (void *fault_addr); 
 
 #endif

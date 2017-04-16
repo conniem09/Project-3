@@ -56,13 +56,14 @@ page_clear_all ()
   while (hash_next (&i))
   {
     p = hash_entry (hash_cur (&i), page, hash_element);
-      if (p->location == IN_FRAME)
-      {
-        frame_free (p->kpage);
-        p->kpage = NULL;
-        p->location = 0;
-      }
+    if (p->location == IN_FRAME)
+    {
+      frame_free (p->kpage);
+      p->kpage = NULL;
+      p->location = 0;
+    }
   }
+  hash_destroy(spt, NULL);
 }
 //</chiahua>
 
@@ -71,7 +72,7 @@ page_clear_all ()
 page * 
 page_build(uint8_t *upage, struct file *file, bool writable, 
            size_t page_read_bytes, size_t page_zero_bytes, int location, 
-           unsigned ofs)
+           unsigned ofs, uint32_t *pagedir)
 {
       page *entry = (page*) malloc(sizeof (page));
       ASSERT(entry != NULL);
@@ -83,6 +84,8 @@ page_build(uint8_t *upage, struct file *file, bool writable,
       entry->ofs = ofs;
       entry->location = location;
       entry->kpage = NULL;
+      entry->pagedir = pagedir;
+      entry->swap_location = 0;
       return entry; 
 }
 //</cris>
@@ -98,6 +101,7 @@ page_read_install (page *target)
   //page entry = Page_hash_find(upage virtual address);
   struct file *file = target->file;
   uint8_t *upage = target->upage;
+  uint32_t *pagedir = target->pagedir;
   uint32_t page_read_bytes = target->page_read_bytes;
   uint32_t page_zero_bytes = target->page_zero_bytes;
   file_seek (file, target->ofs);
@@ -109,17 +113,18 @@ page_read_install (page *target)
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
   //</Connie>
   //<Chiahua>
-  page_install_to_frame(target, upage, kpage);
+  page_install_to_frame(target, upage, kpage, pagedir);
   //</Chiahua>
 }
 
 bool
-page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage)
+page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage, 
+                      uint32_t *pagedir)
 {
   // Add the page to physical address space.
   //<Chiahua>
   bool writable = target->writable;
-  bool success = frame_install (upage, kpage, writable);
+  bool success = frame_install (upage, kpage, pagedir, writable, target);
   if (!success) 
   {
     frame_free (kpage);
@@ -140,30 +145,23 @@ void page_fault_identifier (void *fault_addr)
   page *target;
   struct hash_elem *target_elem;
   srch.upage = pg_round_down (fault_addr);
-  // **************************************************
-  //printf("\nFault Address: %x\n",srch.upage);
   target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
-  //Not part of our virtual address space. Segmentation Fault
+  //Not part of our virtual address space.
   if (target_elem == NULL) 
   {
-   // printf("Segmentation Fault\n");
     system_exit_helper(-1);
   }
   else 
   {
   
     target = hash_entry (target_elem, page, hash_element);
-    // **************************************************
-    // printf("Location = %d\n", target->location); 
     if (target->location == IN_SWAP)
     {
       //Grab from Swap
-      //Install Page
     }
     else if (target->location == IN_FILESYS)
     {
        //Read from filesys
-       //Install Page 
        page_read_install (target);
     }
     else 
@@ -171,14 +169,5 @@ void page_fault_identifier (void *fault_addr)
       //Should not get here
       ASSERT(false);
     }
-  }
-
-  //</Chiahua>
-  /*
-   * Notes: Be careful of bringing in the wrong data, like, treating code as data or data as code.
-   * In thread create, as long as not the main thread, initialise supplemental page table entry?
-   * 
-   * Writable: Make it so you can't overwrite your code pages. 
-   */
-  
+  }  
 }

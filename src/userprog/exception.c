@@ -198,9 +198,10 @@ page_fault (struct intr_frame *f)
         if (kpage != NULL) 
         {
           page *entry = page_build ((uint8_t *)(pg_round_down(fault_addr) 
-                                    /*- PGSIZE*/), 0, true, 0, 0, IN_FRAME, 0);
+                                    /*- PGSIZE*/), 0, true, 0, 0, IN_FRAME, 0, 
+                                    thread_current()->pagedir);
           page_add(entry);
-          page_install_to_frame (entry, entry->upage, kpage);
+          page_install_to_frame (entry, entry->upage, kpage, entry->pagedir);
         }
       }
       else

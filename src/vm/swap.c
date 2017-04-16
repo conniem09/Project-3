@@ -1,3 +1,11 @@
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez     Connie Chen
+ * CL38755                  CJM4686               CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com   conniem09@gmail.com
+ * 52075                    52080                 52105
+ */
+ 
+//<Chia-Hua, Cristian, Connie> 
 #include "vm/swap.h"
 
 struct block * swap;
@@ -9,7 +17,6 @@ swap_init ()
   swap = block_get_role (BLOCK_SWAP);
   //bitmap is indexed by number of pages
   free_bitmap = bitmap_create (block_size (swap) * BLOCK_SECTOR_SIZE / PGSIZE);
-  
 }
 
 block_sector_t 
@@ -18,7 +25,7 @@ swap_get_free ()
   int i;
   i = bitmap_scan(free_bitmap, 0, 1, false);
   bitmap_set (free_bitmap, i, true);
-  bitmap_dump(free_bitmap);
+  //bitmap_dump(free_bitmap);
   return (block_sector_t) i * 8;
 }
 
@@ -48,3 +55,4 @@ swap_write (const void *buffer, page *page_pointer)
     buffer += BLOCK_SECTOR_SIZE;
   }
 }
+//</Chia-Hua, Cristian, Connie>

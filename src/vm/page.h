@@ -1,3 +1,11 @@
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez     Connie Chen
+ * CL38755                  CJM4686               CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com   conniem09@gmail.com
+ * 52075                    52080                 52105
+ */
+ 
+//<Chiahua, Cristian, Connie>
 #ifndef INC_PAGEH
 
 #define INC_PAGEH
@@ -25,7 +33,6 @@ typedef struct page_t
   uint32_t *pagedir;
 } page;
 
-
 void page_init (struct hash *spt);
 void page_clear_all (void);
 unsigned page_hash (const struct hash_elem *p_, void *aux);
@@ -42,3 +49,4 @@ bool page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage,
 void page_fault_identifier (void *fault_addr); 
 
 #endif
+//<//Chia-Hua, Cristian, Connie>

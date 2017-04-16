@@ -1,3 +1,9 @@
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez     Connie Chen
+ * CL38755                  CJM4686               CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com   conniem09@gmail.com
+ * 52075                    52080                 52105
+ */
 #include "page.h"
 #include "filesys/file.h"
 #include "threads/malloc.h"
@@ -7,9 +13,8 @@
 #include "userprog/process.h"
 #include "threads/vaddr.h"
 
-
 //<Documentation>
-/* Returns a hash value for page p. */
+/* Returns a hash value for page p.*/
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
@@ -29,7 +34,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 }
 //</Documentation>
 
-//<chiahua>
+//<Chiahua>
 //initiate the supplemental page table. 
 void
 page_init (struct hash *spt)
@@ -38,7 +43,7 @@ page_init (struct hash *spt)
   hash_init (spt, page_hash, page_less, NULL);
 }
 
-// add a page to the supplemental page table. 
+//add a page to the supplemental page table. 
 page * 
 page_add (page *entry) 
 {
@@ -65,16 +70,15 @@ page_clear_all ()
   }
   hash_destroy(spt, NULL);
 }
-//</chiahua>
+//</Chiahua>
 
-
-//<cris>
+//<Cris>
 page * 
 page_build(uint8_t *upage, struct file *file, bool writable, 
            size_t page_read_bytes, size_t page_zero_bytes, int location, 
            unsigned ofs, uint32_t *pagedir)
 {
-      page *entry = (page*) malloc(sizeof (page));
+      page *entry = (page*) malloc (sizeof (page));
       ASSERT(entry != NULL);
       entry->upage = upage;
       entry->file = file;
@@ -88,7 +92,7 @@ page_build(uint8_t *upage, struct file *file, bool writable,
       entry->swap_location = 0;
       return entry; 
 }
-//</cris>
+//</Cris>
 
 void
 page_read_install (page *target)
@@ -140,7 +144,6 @@ page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage,
 void page_fault_identifier (void *fault_addr) 
 {
   //<Chiahua>
-  
   page srch;
   page *target;
   struct hash_elem *target_elem;
@@ -153,11 +156,13 @@ void page_fault_identifier (void *fault_addr)
   }
   else 
   {
-  
     target = hash_entry (target_elem, page, hash_element);
     if (target->location == IN_SWAP)
     {
       //Grab from Swap
+      page_install_to_frame (target, target->upage, target->kpage, 
+                      target->pagedir);
+      swap_read (target->kpage, target);
     }
     else if (target->location == IN_FILESYS)
     {
@@ -171,3 +176,4 @@ void page_fault_identifier (void *fault_addr)
     }
   }  
 }
+//</Chiahua>

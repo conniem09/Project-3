@@ -1,3 +1,9 @@
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez     Connie Chen
+ * CL38755                  CJM4686               CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com   conniem09@gmail.com
+ * 52075                    52080                 52105
+ */
 #include "vm/frames.h"
 #include "userprog/syscall.h"
 #include "threads/synch.h"
@@ -12,7 +18,7 @@ struct frame_table_elem *frame_table[TOTAL_PAGES];
 int occupancy;
 int clock_pointer;
 
-//<cris>
+//<Cris>
 //initiates the frame table
 void 
 frame_table_init () 
@@ -25,11 +31,11 @@ frame_table_init ()
   do
   {
     //initiate the frame_table_elem
-    x = (struct frame_table_elem * ) malloc (sizeof (struct frame_table_elem));
+    x = (struct frame_table_elem *) malloc (sizeof (struct frame_table_elem));
     x->kpage = palloc_get_page(PAL_USER);
     x->upage = NULL;
     x->pagedir = NULL;
-    x->page_pointer =NULL;
+    x->page_pointer = NULL;
     
     //add the frame_table_elem to the array
     frame_table[i] = x;
@@ -37,9 +43,9 @@ frame_table_init ()
   } while (i < TOTAL_PAGES && x != NULL);
   
 }
-//</cris>
+//</Cris>
 
-//<chiahua, cris>
+//<Chiahua, Cris>
 //labels a frame as available 
 void
 frame_free (uint8_t *kpage)
@@ -94,9 +100,9 @@ frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
   lock_release (&lock);
   return success;		
 }
-//</chiahua, cris>
+//</Chiahua, Cris>
 
-//<cris>
+//<Cris>
 //find an unoccupied frame
 uint8_t * 
 frame_find_empty ()
@@ -107,7 +113,7 @@ frame_find_empty ()
   {
     for (i = 0; i < TOTAL_PAGES; i++)
     {
-      if (frame_table[i]-> upage == NULL)
+      if (frame_table[i]->upage == NULL)
       {
         lock_release (&lock);
         return frame_table[i]->kpage;
@@ -117,21 +123,22 @@ frame_find_empty ()
   else
   {
     //printf ("Evict. No Additional Available Frames\n");
+        lock_release (&lock);
+
     uint8_t *result = frame_evict();
-    lock_release (&lock);
     return result;
   }
   lock_release (&lock);
   return NULL;
 }
 
-uint8_t*
+uint8_t *
 frame_evict ()
 {
-  uint8_t* result = NULL;
+  uint8_t * result = NULL;
   bool found = false;
   while(!found){
-    if(pagedir_is_accessed (frame_table[clock_pointer] ->pagedir, 
+    if(pagedir_is_accessed (frame_table[clock_pointer]->pagedir, 
        frame_table[clock_pointer]->upage) == 0)
     {
       found = true;
@@ -146,7 +153,7 @@ frame_evict ()
     }
     else
     {
-      pagedir_set_accessed (frame_table[clock_pointer] ->pagedir, 
+      pagedir_set_accessed (frame_table[clock_pointer]->pagedir, 
        frame_table[clock_pointer]->upage, 0); 
     }
     clock_pointer++;
@@ -157,4 +164,4 @@ frame_evict ()
   }
   return result;
 }
-//</cris>
+//</Cris>

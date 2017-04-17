@@ -69,7 +69,6 @@ page_clear_all ()
       p->kpage = NULL;
       p->location = 0;
     }
-    //free(p);
   }
   hash_destroy(spt, NULL);
   free(spt);
@@ -102,11 +101,9 @@ void
 page_read_install (page *target)
 {
   //<Connie>
-  
   //Find an empty frame to intall to
   uint8_t *kpage = frame_find_empty ();
   
-  //page entry = Page_hash_find(upage virtual address);
   struct file *file = target->file;
   uint8_t *upage = target->upage;
   uint32_t *pagedir = target->pagedir;
@@ -152,9 +149,12 @@ void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user)
   page *target;
   uint8_t * kpage;
   struct hash_elem *target_elem;
+  if(lock_held_by_current_thread (&frame_lock))
+  {
+      lock_release(&frame_lock);
+  }
   srch.upage = pg_round_down (fault_addr);
   target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
-  //printf("%x\n", fault_addr);
   //Not part of our virtual address space.
   if (target_elem == NULL) 
   {
@@ -170,9 +170,9 @@ void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user)
         kpage = frame_find_empty ();
         if (kpage != NULL) 
         {
-          page *entry = page_build ((uint8_t *)(pg_round_down(fault_addr) 
-                                    /*- PGSIZE*/), 0, true, 0, 0, IN_FRAME, 0, 
-                                    thread_current()->pagedir);
+          page *entry = page_build ((uint8_t *)(pg_round_down(fault_addr)), 0, 
+                                      true, 0, 0, IN_FRAME, 0, 
+                                      thread_current()->pagedir);
           page_add(entry);
           page_install_to_frame (entry, entry->upage, kpage, entry->pagedir);
         }
@@ -181,7 +181,6 @@ void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user)
       {
         system_exit_helper(-1);
       }
-    
   }
   else 
   {
@@ -190,19 +189,17 @@ void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user)
     {
       //Grab from Swap
       kpage = frame_find_empty();
+      lock_acquire(&frame_lock);
       swap_read (kpage, target);
+      lock_release(&frame_lock);
       page_install_to_frame (target, target->upage, kpage, 
                       target->pagedir);
+      
     }
     else if (target->location == IN_FILESYS)
     {
        //Read from filesys
        page_read_install (target);
-    }
-    else 
-    {
-      //Should not get here
-      ASSERT(false);
     }
   }  
 }

@@ -65,14 +65,12 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  //tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   tid = register_child_with_parent (file_name, PRI_DEFAULT, start_process, 
                                    fn_copy, thread_current ());
  
   if (tid != -1)
     return tid;
   else {
-    //palloc_free_page (fn_copy); 
     return -1;
   }
 }
@@ -98,7 +96,6 @@ start_process (void *file_name_)
   {
     thread_exit ();
   }
-  //sema_up (&thread_current()->parent->forking);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -517,22 +514,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   return true;
 }
-
-/* ********************************************************************
-  
-  //Chiahua>
-  struct page *entry = malloc(sizeof(struct page));
-  entry->upage = upage;
-  entry->file = file;
-  entry->page_read_bytes = page_read_bytes;
-  entry->page_zero_bytes = page_zero_bytes;
-  page_add (entry);
-  page_read_install(upage);
-  read_bytes -= page_read_bytes;
-  zero_bytes -= page_zero_bytes;
-  upage += PGSIZE;*/
-  //</Chiahua>
-  
   
 
 /* Create a minimal stack by mapping a zeroed page at the top of
@@ -558,13 +539,10 @@ setup_stack (void **esp,const char *file_name)
   fn_copy = palloc_get_page (PAL_ZERO);
   if (fn_copy == NULL) 
   {
-    //palloc_free_page (fn_copy);
     return TID_ERROR;
   }
-  //strlcpy (fn_copy, file_name, PGSIZE);
   //</connie>  
 
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   kpage = frame_find_empty ();
   if (kpage != NULL) 
     {
@@ -667,7 +645,6 @@ setup_stack (void **esp,const char *file_name)
   //</sabrina>
   
   *esp = my_esp;
-  //hex_dump((int) *esp, *esp, PHYS_BASE-*esp, 1);
     
   return success;
 }

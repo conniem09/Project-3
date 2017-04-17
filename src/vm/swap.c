@@ -15,7 +15,6 @@ void
 swap_init () 
 {
   swap = block_get_role (BLOCK_SWAP);
-  //bitmap is indexed by number of pages
   free_bitmap = bitmap_create (block_size (swap) * BLOCK_SECTOR_SIZE / PGSIZE);
 }
 
@@ -25,7 +24,6 @@ swap_get_free ()
   int i;
   i = bitmap_scan(free_bitmap, 0, 1, false);
   bitmap_set (free_bitmap, i, true);
-  //bitmap_dump(free_bitmap);
   return (block_sector_t) i * 8;
 }
 
@@ -34,7 +32,6 @@ swap_read (const void *buffer, page *page_pointer)
 {
   int i;
   block_sector_t sector = page_pointer->swap_location;
-  //printf("%d IN SWAP READ\n", sector);
   for (i = 0; i < 8; i++)
   {
     block_read (swap, sector, buffer);
@@ -51,7 +48,6 @@ swap_write (const void *buffer, page *page_pointer)
   int i;
   block_sector_t sector = swap_get_free();
   page_pointer->swap_location = sector;
-  //printf("%d IN SWAP WRITE\n", sector);
   for (i = 0; i < 8; i++)
   {
     block_write (swap, sector, buffer);

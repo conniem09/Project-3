@@ -162,6 +162,7 @@ frame_evict ()
       frame_table[clock_pointer]->upage = NULL;
       frame_table[clock_pointer]->pagedir = NULL;
       frame_table[clock_pointer]->page_pointer->location = IN_SWAP;
+      frame_table[clock_pointer]->page_pointer->kpage = NULL;
       frame_table[clock_pointer]->page_pointer = NULL;
       occupancy--;
       result = frame_table[clock_pointer]->kpage;

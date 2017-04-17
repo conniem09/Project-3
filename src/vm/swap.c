@@ -34,12 +34,15 @@ swap_read (const void *buffer, page *page_pointer)
 {
   int i;
   block_sector_t sector = page_pointer->swap_location;
+  //printf("%d IN SWAP READ\n", sector);
   for (i = 0; i < 8; i++)
   {
-    block_write (swap, sector, buffer);
+    block_read (swap, sector, buffer);
     sector++;
     buffer += BLOCK_SECTOR_SIZE;
   }
+  bitmap_set (free_bitmap, page_pointer->swap_location/8, false);
+  page_pointer->swap_location = -1;
 }
 
 void
@@ -48,11 +51,13 @@ swap_write (const void *buffer, page *page_pointer)
   int i;
   block_sector_t sector = swap_get_free();
   page_pointer->swap_location = sector;
+  //printf("%d IN SWAP WRITE\n", sector);
   for (i = 0; i < 8; i++)
   {
     block_write (swap, sector, buffer);
     sector++;
     buffer += BLOCK_SECTOR_SIZE;
   }
+  
 }
 //</Chia-Hua, Cristian, Connie>

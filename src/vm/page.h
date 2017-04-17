@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include "devices/block.h"
 #include "lib/kernel/hash.h"
+#include "threads/interrupt.h"
 
 #define IN_FRAME  1        /* Page is in Page Frame */
 #define IN_SWAP 2          /* Page is in Swap */
@@ -46,7 +47,7 @@ void page_change_state (page *entry, int state);
 void page_read_install (page *target);
 bool page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage, 
                             uint32_t *pagedir);
-void page_fault_identifier (void *fault_addr); 
+void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user); 
 
 #endif
 //<//Chia-Hua, Cristian, Connie>

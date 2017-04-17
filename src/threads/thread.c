@@ -24,6 +24,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "vm/page.h"
+#include "vm/frames.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -344,6 +345,11 @@ thread_exit (void)
 
   ASSERT (!intr_context ());
   //<cris>
+  if(lock_held_by_current_thread (&frame_lock))
+  {
+      ASSERT(false);
+      lock_release(&frame_lock);
+  }
   file_close (thread_current ()->command_line);
   //</cris>
   //<chiahua>
@@ -357,9 +363,9 @@ thread_exit (void)
   }  
   //unblock our parent, then block to wait for parent to fetch status if have 1
   sema_up (&thread_current ()->block_parent);
+  page_clear_all ();
   if (thread_current ()->parent != NULL)
     sema_down (&thread_current ()->block_child);
-
   //parent has grabbed our exit status, proceed to die  
 
   //iterate through array fd_pointers, closing any open files
@@ -374,27 +380,16 @@ thread_exit (void)
     }
     index++;
   }
-  //28.6
-  
   //</chiahua>
 #ifdef USERPROG
   process_exit ();
 #endif
-  page_clear_all ();
-  
-  
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-     //28.6
   intr_disable ();
-  
-  //28.6
   list_remove (&thread_current ()->allelem);
-   //28.6
   thread_current ()->status = THREAD_DYING;
-  //26
-
   schedule ();
   NOT_REACHED ();
 }

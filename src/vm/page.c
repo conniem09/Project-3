@@ -12,6 +12,7 @@
 #include "lib/string.h"
 #include "userprog/process.h"
 #include "threads/vaddr.h"
+#include "vm/swap.h"
 
 //<Documentation>
 /* Returns a hash value for page p.*/
@@ -51,6 +52,7 @@ page_add (page *entry)
   return entry;
 }
 
+//
 void 
 page_clear_all ()
 {
@@ -67,8 +69,10 @@ page_clear_all ()
       p->kpage = NULL;
       p->location = 0;
     }
+    //free(p);
   }
   hash_destroy(spt, NULL);
+  free(spt);
 }
 //</Chiahua>
 
@@ -89,7 +93,7 @@ page_build(uint8_t *upage, struct file *file, bool writable,
       entry->location = location;
       entry->kpage = NULL;
       entry->pagedir = pagedir;
-      entry->swap_location = 0;
+      entry->swap_location = -1;
       return entry; 
 }
 //</Cris>
@@ -112,7 +116,7 @@ page_read_install (page *target)
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
   {
     frame_free (kpage);
-    system_exit_helper(-1);
+    system_exit_helper(-35);
   }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
   //</Connie>
@@ -132,7 +136,7 @@ page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage,
   if (!success) 
   {
     frame_free (kpage);
-    system_exit_helper(-1);
+    system_exit_helper(-532);
   }
   
   target->location = IN_FRAME;
@@ -141,18 +145,43 @@ page_install_to_frame (page *target, uint8_t *upage, uint8_t *kpage,
   //</Chiahua>
 }
 
-void page_fault_identifier (void *fault_addr) 
+void page_fault_identifier (void *fault_addr, struct intr_frame *f, bool user) 
 {
   //<Chiahua>
   page srch;
   page *target;
+  uint8_t * kpage;
   struct hash_elem *target_elem;
   srch.upage = pg_round_down (fault_addr);
   target_elem = hash_find(thread_current ()->spt, &srch.hash_element);
+  //printf("%x\n", fault_addr);
   //Not part of our virtual address space.
   if (target_elem == NULL) 
   {
-    system_exit_helper(-1);
+      //if user or if kernel
+      void *stack_pointer = f->esp;
+      if(!user)
+      {
+        stack_pointer = thread_current()->esp;
+      }
+      if(fault_addr >= (stack_pointer - 32))
+      {
+        //is stack growth
+        kpage = frame_find_empty ();
+        if (kpage != NULL) 
+        {
+          page *entry = page_build ((uint8_t *)(pg_round_down(fault_addr) 
+                                    /*- PGSIZE*/), 0, true, 0, 0, IN_FRAME, 0, 
+                                    thread_current()->pagedir);
+          page_add(entry);
+          page_install_to_frame (entry, entry->upage, kpage, entry->pagedir);
+        }
+      }
+      else
+      {
+        system_exit_helper(-1);
+      }
+    
   }
   else 
   {
@@ -160,9 +189,10 @@ void page_fault_identifier (void *fault_addr)
     if (target->location == IN_SWAP)
     {
       //Grab from Swap
-      page_install_to_frame (target, target->upage, target->kpage, 
+      kpage = frame_find_empty();
+      swap_read (kpage, target);
+      page_install_to_frame (target, target->upage, kpage, 
                       target->pagedir);
-      swap_read (target->kpage, target);
     }
     else if (target->location == IN_FILESYS)
     {

@@ -267,6 +267,7 @@ system_open (void *stack_pointer)
       //</sabrina, cris>
     }
   }
+  return -1;
 }
 
 //Returns the size, in bytes, of the file open as fd.
@@ -499,6 +500,7 @@ void system_close (void *stack_pointer)
   }
   //</connie, chiahua>
 }
+
 
 //<cris>
 void check_pointer (void* pointer)

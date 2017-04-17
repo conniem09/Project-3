@@ -4,7 +4,9 @@
  * thegoldflute@gmail.com   criscubed@gmail.com   conniem09@gmail.com
  * 52075                    52080                 52105
  */
+#include <stdio.h>
 #include "vm/frames.h"
+#include "vm/swap.h"
 #include "userprog/syscall.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
@@ -12,7 +14,8 @@
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 
-struct lock lock;
+
+
 /* Array of frame_table_elems */
 struct frame_table_elem *frame_table[TOTAL_PAGES];
 int occupancy;
@@ -24,9 +27,9 @@ void
 frame_table_init () 
 { 
   occupancy = 0;
-  clock_pointer = 0;
+  clock_pointer = 25;
   int i = 0;
-  lock_init (&lock);
+  lock_init (&frame_lock);
   struct frame_table_elem *x = NULL;
   do
   {
@@ -38,7 +41,9 @@ frame_table_init ()
     x->page_pointer = NULL;
     
     //add the frame_table_elem to the array
+    lock_acquire(&frame_lock);
     frame_table[i] = x;
+    lock_release(&frame_lock);
     i++;
   } while (i < TOTAL_PAGES && x != NULL);
   
@@ -50,7 +55,7 @@ frame_table_init ()
 void
 frame_free (uint8_t *kpage)
 {
-  lock_acquire (&lock);
+  lock_acquire (&frame_lock);
 	int i;
   //iterate through all pages
 	for (i = 0; i < TOTAL_PAGES; i++)
@@ -64,7 +69,7 @@ frame_free (uint8_t *kpage)
       occupancy--;
 	  }
 	}
-  lock_release (&lock);
+  lock_release (&frame_lock);
 }
 
 //install a virtual page into a physical page
@@ -72,7 +77,7 @@ bool
 frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
                 page *page_pointer)
 {
-  lock_acquire (&lock);
+  lock_acquire (&frame_lock);
   //Move the upage to the kpage
 	bool success = install_page_external (upage, kpage, writable);
 	if (success) 
@@ -86,7 +91,7 @@ frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
         //upage at this point should be null
         if (frame_table[i]->upage != NULL)
         {
-          lock_release (&lock);
+          lock_release (&frame_lock);
           system_exit_helper(-1);
         }
         //update frame table metadata
@@ -97,7 +102,7 @@ frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
 		  }
 		}
 	}
-  lock_release (&lock);
+  lock_release (&frame_lock);
   return success;		
 }
 //</Chiahua, Cris>
@@ -107,43 +112,53 @@ frame_install (uint8_t *upage, uint8_t *kpage, uint32_t *pagedir, bool writable,
 uint8_t * 
 frame_find_empty ()
 {
-  lock_acquire (&lock);
+  lock_acquire (&frame_lock);
   int i;
+  //check if all pages are occupied or not
   if (occupancy < TOTAL_PAGES)
   {
+    //iterate through all the frames
     for (i = 0; i < TOTAL_PAGES; i++)
     {
+      //and find one that is available
       if (frame_table[i]->upage == NULL)
       {
-        lock_release (&lock);
+        lock_release (&frame_lock);
         return frame_table[i]->kpage;
       }
     }
   }
   else
   {
-    //printf ("Evict. No Additional Available Frames\n");
-        lock_release (&lock);
-
+    lock_release (&frame_lock);
     uint8_t *result = frame_evict();
     return result;
   }
-  lock_release (&lock);
+  //should not get here
+  lock_release (&frame_lock);
+  printf("No available page was found\n");
   return NULL;
 }
 
+//find and return a page to evict
 uint8_t *
 frame_evict ()
 {
   uint8_t * result = NULL;
   bool found = false;
+  //find a page to evict using clock algorithm
   while(!found){
+    //if the accessed bit is 0
     if(pagedir_is_accessed (frame_table[clock_pointer]->pagedir, 
        frame_table[clock_pointer]->upage) == 0)
     {
       found = true;
-      swap_write(frame_table[clock_pointer]->upage, 
+      //Write the current page into swap
+      pagedir_clear_page(frame_table[clock_pointer]->pagedir, 
+                       frame_table[clock_pointer]->upage); 
+      swap_write(frame_table[clock_pointer]->kpage, 
                  frame_table[clock_pointer]->page_pointer);
+      //clear the metadata for the current frame table element
       frame_table[clock_pointer]->upage = NULL;
       frame_table[clock_pointer]->pagedir = NULL;
       frame_table[clock_pointer]->page_pointer->location = IN_SWAP;
@@ -153,15 +168,19 @@ frame_evict ()
     }
     else
     {
+      //if the accessed bit is not 0 then set it to 0
       pagedir_set_accessed (frame_table[clock_pointer]->pagedir, 
        frame_table[clock_pointer]->upage, 0); 
     }
+    //increment the clock pointer
     clock_pointer++;
+    //reset the clock pointer
     if(clock_pointer == TOTAL_PAGES)
     {
-      clock_pointer = 0;
+      clock_pointer = 25;
     }
   }
+  //return the evicted page
   return result;
 }
 //</Cris>

@@ -27,7 +27,6 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-static bool check_for_stack_growth(void *fault_addr);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -146,7 +145,6 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-  uint8_t *kpage;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -182,54 +180,24 @@ page_fault (struct intr_frame *f)
   
   // **************************************************
   // printf("\n%x\n", fault_addr);
-  if (fault_addr == NULL)
+  if (fault_addr == NULL || is_kernel_vaddr(fault_addr) || !not_present)
   {
-    printf("There is no crying in Pintos!\n");
+    //printf("There is no crying in Pintos!\n");
     system_exit_helper(-1);
   }
   else
   {
     if (not_present)
     {
-      if(fault_addr >= (f->esp - 32))//check_for_stack_growth (fault_addr, f))
-      {
-        //is stack growth
-        kpage = frame_find_empty ();
-        if (kpage != NULL) 
-        {
-          page *entry = page_build ((uint8_t *)(pg_round_down(fault_addr) 
-                                    /*- PGSIZE*/), 0, true, 0, 0, IN_FRAME, 0, 
-                                    thread_current()->pagedir);
-          page_add(entry);
-          page_install_to_frame (entry, entry->upage, kpage, entry->pagedir);
-        }
-      }
-      else
-      {
-        page_fault_identifier (fault_addr);
-      }
+      page_fault_identifier (fault_addr, f, user);
     }
     else
     {
-      //printf ("Page fault at %p: %s error %s page in %s context.\n",
+        //printf ("Page fault at %p: %s error %s page in %s context.\n",
         //fault_addr,
         //not_present ? "not present" : "rights violation",
         //write ? "writing" : "reading",
         //user ? "user" : "kernel");
     }
   }
-  //kill (f);
 }
-
-static bool
-check_for_stack_growth(void *fault_addr)
-{  
-  void *sp = thread_current ()->esp;
-  //if (fault_addr < (pg_round_down(sp)+PGSIZE) && fault_addr >= (pg_round_down(sp)+PGSIZE)-32)
-  if(/*fault_addr < sp &&*/ fault_addr >= (sp - 32))
-  {
-    return true;
-  } 
-  return false;
-}
-

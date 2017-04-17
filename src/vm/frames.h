@@ -11,6 +11,8 @@
 #include "vm/page.h"
 #define TOTAL_PAGES 367
 
+struct lock frame_lock;
+
 void frame_table_init (void);
 uint8_t * frame_find_empty (void);
 struct frame_table_elem frame_get_index_by_virtual(void);

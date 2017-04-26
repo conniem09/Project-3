@@ -9,16 +9,32 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
+#define SECTORSIZE 512		        //Bytes per sector
+#define POINTERS_PER_SECTOR 128	//Pointers that fit on a sector
+#define num_IBs 16               //Number of IBs pointed by iNode
+#define secs_per_chunk 8         //Sectors per datablock
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
-  {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
-  };
+{
+  //<Chiahua>
+  block_sector_t ib_ptr[num_IBs];         /* 16 Level 1 Indirect Pointer */
+  unsigned magic;                    /* Magic number. */
+  unsigned unused[111];              /* Unused space occupier */
+  //</Chiahua>
+};
+
+/* On-disk Indirect Block.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+   /*
+struct ib_disk
+{
+  //<Chiahua>
+  block_sector_t ptr[POINTERS_PER_SECTOR];            128 direct Pointers to data blocks 
+  //</Chiahua>
+};
+*/
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -30,28 +46,100 @@ bytes_to_sectors (off_t size)
 
 /* In-memory inode. */
 struct inode 
-  {
-    struct list_elem elem;              /* Element in inode list. */
-    block_sector_t sector;              /* Sector number of disk location. */
-    int open_cnt;                       /* Number of openers. */
-    bool removed;                       /* True if deleted, false otherwise. */
-    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
-  };
+{
+  struct list_elem elem;              /* Element in inode list. */
+  block_sector_t sector;              /* Sector number of disk location. */
+  int open_cnt;                       /* Number of openers. */
+  bool removed;                       /* True if deleted, false otherwise. */
+  int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+  struct inode_disk data;             /* Inode content. */
+};
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
 static block_sector_t
-byte_to_sector (const struct inode *inode, off_t pos) 
+byte_to_sector (const struct inode *inode, off_t pos, bool extended) 
 {
+  // TODO: Edit this using math
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+  //if it is just reads, it will not extend
+  //if (pos < inode->data.length)
+  //{
+  //<Chiahua>
+  //temp buffer to store sector
+  block_sector_t buffer[POINTERS_PER_SECTOR];
+  //
+  int inode_index = pos/(SECTORSIZE*secs_per_chunk*POINTERS_PER_SECTOR);
+  int IB_index = (pos%(SECTORSIZE*secs_per_chunk*POINTERS_PER_SECTOR))/(SECTORSIZE*secs_per_chunk);
+  int sector_index = (pos%(SECTORSIZE*secs_per_chunk*POINTERS_PER_SECTOR))%(SECTORSIZE*secs_per_chunk)/
+                     (SECTORSIZE);
+                     
+  // if file is larger than max supported size, fail the operation
+  ASSERT (inode_index < num_IBs);
+  
+  //Read inode from disk into buffer
+  block_read (inode->data, inode->sector, &buffer);
+  //inode memory also contains its data.
+  //can make the buffer into a inode disk
+  //</Chiahua>
+  
+  //<Cris>
+  //Get IB address from inode
+  block_sector_t sector = buffer[inode_index];
+  if (sector == 0)
+  {
+    if (!extended)
+      return -1;
+    else 
+    {
+      //<Chiahua>
+      //Request new IB
+      sector = bitmap_scan (&bitmap, 0, 1, false);
+      buffer[inode_index] = sector;
+      bitmap_set_multiple (&bitmap, sector, 1, true);
+      block_write(inode->data, inode->sector, &buffer);
+      //</Chiahua>
+    }
+  }
+  
+  //Read IB from disk into buffer
+  block_read (inode->data, sector, &buffer);
+  //Save the IB address
+  block_sector_t ib_address = sector;
+  
+  //Get Data block address from IB
+  sector = buffer[IB_index];
+  if (sector == 0)
+  {
+    if (!extended)
+      return -1;
+    else 
+    {
+      //<Connie>
+      //Request new Data area
+      sector = bitmap_scan (&bitmap, 0, 8, false);
+      buffer[IB_index] = sector;
+      bitmap_set_multiple (&bitmap, sector, 8, true);
+      block_write(inode->data, ib_address, &buffer);
+      //</Connie>
+    }
+  }
+  
+  //Recursively fill in gap if file has gap
+  //<Chiahua>
+  while (byte_to_sector (inode, pos - (secs_per_chunk * SECTORSIZE), false == -1)) 
+  {
+    byte_to_sector (inode, pos - (secs_per_chunk * SECTORSIZE), true)
+    pos = pos - (secs_per_chunk * SECTORSIZE);
+  } 
+  //</Chiahua>
+  //Return the correct datablock sector number
+  return sector + sector_index; 
 }
+//</Cris> 
+    
 
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
@@ -72,6 +160,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
+  //TODO: Edit this method extensively
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
@@ -83,25 +172,25 @@ inode_create (block_sector_t sector, off_t length)
 
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
+  {
+    size_t sectors = bytes_to_sectors (length);
+    disk_inode->length = length;
+    disk_inode->magic = INODE_MAGIC;
+    if (free_map_allocate (sectors, &disk_inode->start)) 
     {
-      size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
-      disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
-      free (disk_inode);
-    }
+      block_write (fs_device, sector, disk_inode);
+      if (sectors > 0) 
+      {
+        static char zeros[BLOCK_SECTOR_SIZE];
+        size_t i;
+        
+        for (i = 0; i < sectors; i++) 
+          block_write (fs_device, disk_inode->start + i, zeros);
+      }
+      success = true; 
+    } 
+    free (disk_inode);
+  }
   return success;
 }
 
@@ -174,6 +263,7 @@ inode_close (struct inode *inode)
       list_remove (&inode->elem);
  
       /* Deallocate blocks if removed. */
+      //TODO: Edit how to deallocate 
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
@@ -207,7 +297,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
-      block_sector_t sector_idx = byte_to_sector (inode, offset);
+      block_sector_t sector_idx = byte_to_sector (inode, offset, false);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -247,7 +337,8 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   free (bounce);
 
   return bytes_read;
-}
+}             
+
 
 /* Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
    Returns the number of bytes actually written, which may be
@@ -267,8 +358,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   while (size > 0) 
     {
+      //TODO: Need to allocate space and create IBs and datablocks
+      
       /* Sector to write, starting byte offset within sector. */
-      block_sector_t sector_idx = byte_to_sector (inode, offset);
+      block_sector_t sector_idx = byte_to_sector (inode, offset, true);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

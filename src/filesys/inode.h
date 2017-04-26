@@ -6,7 +6,6 @@
 #include "devices/block.h"
 #include "lib/kernel/bitmap.h"
 
-struct bitmap;
 
 void inode_init (void);
 bool inode_create (block_sector_t, off_t);

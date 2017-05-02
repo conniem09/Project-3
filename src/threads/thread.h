@@ -18,6 +18,8 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "filesys/file.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -129,7 +131,11 @@ struct thread
     
     //<cris>
     struct list child_list;             /* a list of children */
+    
+    /* Project 4 code */
+    struct dir *pwd;                    /* Present working directory */
     //</cris>
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

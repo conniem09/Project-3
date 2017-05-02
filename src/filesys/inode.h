@@ -2,13 +2,44 @@
 #define FILESYS_INODE_H
 
 #include <stdbool.h>
+#include <list.h>
 #include "filesys/off_t.h"
 #include "devices/block.h"
 #include "lib/kernel/bitmap.h"
 
+/* Identifies an inode. */
+#define INODE_MAGIC 0x494e4f44
+#define SECTORSIZE 512		       //Bytes per sector
+#define POINTERS_PER_SECTOR 128	 //Pointers that fit on a sector
+#define NUM_IBs 20               //Number of IBs pointed by iNode
+#define SECS_PER_CHUNK 8         //Sectors per datablock
+
+/* On-disk inode.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct inode_disk
+{
+  //<Chiahua>
+  block_sector_t ib_ptr[NUM_IBs];    /* 32 Level 1 Indirect Pointer */
+  bool is_dir;                       /* Is this inode a directory or file */
+  unsigned length;                   /* Length of File */
+  unsigned magic;                    /* Magic number. */
+  unsigned unused[POINTERS_PER_SECTOR-NUM_IBs-3];   /* Unused space occupier */
+  //</Chiahua>
+};
+
+/* In-memory inode. */
+struct inode 
+{
+  struct list_elem elem;              /* Element in inode list. */
+  block_sector_t sector;              /* Sector number of disk location. */
+  int open_cnt;                       /* Number of openers. */
+  bool removed;                       /* True if deleted, false otherwise. */
+  int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+  struct inode_disk data;             /* Inode content. */
+};
 
 void inode_init (void);
-bool inode_create (block_sector_t, off_t);
+bool inode_create (block_sector_t, off_t, bool);
 struct inode *inode_open (block_sector_t);
 struct inode *inode_reopen (struct inode *);
 block_sector_t inode_get_inumber (const struct inode *);

@@ -1,13 +1,17 @@
+//Project 4
 /* Student Information
- * Chia-Hua Lu              Sabrina Herrero             Connie Chen
- * CL38755                  SH44786                     CMC5837
- * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
- * 52075                    52105                       52105
- * 
- * Cristian Martinez
- * CJM4686
- * criscubed@gmail.com
- * 52080
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
+//Previous Contributor
+/* Student Information
+ * Sabrina Herrero             
+ * SH44786                     
+ * sabrinaherrero123@gmail.com 
+ * 52105
  */
 
 #include "lib/user/syscall.h"
@@ -38,6 +42,13 @@ int system_write (void *stack_pointer);
 void system_seek (void *stack_pointer);
 unsigned system_tell (void *stack_pointer);
 void system_close (void *stack_pointer);
+//<connie>
+void system_chdir (void *stack_pointer);
+bool system_mkdir (void *stack_pointer);
+void system_readdir (void *stack_pointer);
+void system_isdir (void *stack_pointer);
+void system_inumber (void *stack_pointer);
+//</connie>
 
 void check_pointer (void* pointer);
 //</sabrina, connie, cris>
@@ -105,6 +116,21 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_CLOSE:
       system_close (stack_pointer);
+      break;
+    case SYS_CHDIR:
+      system_chdir (stack_pointer);
+      break;
+    case SYS_MKDIR:
+      f->eax = system_mkdir (stack_pointer);
+      break;
+    case SYS_READDIR:
+      system_readdir (stack_pointer);
+      break;
+    case SYS_ISDIR:
+      system_isdir (stack_pointer);
+      break;
+    case SYS_INUMBER:
+      system_inumber (stack_pointer);
       break;
     //Invalid system call  
     default:              
@@ -228,6 +254,11 @@ system_remove (void *stack_pointer)
 int 
 system_open (void *stack_pointer)
 {
+  /*
+   * Need to do both files and directories here. like, at Pintos/ sysopen ("src").
+   * If no traversal needed, treat same way as a regular file. Only need to treat separately
+   * if it has "/" and "."s.
+   */
   //<sabrina, cris>
   int i;
   int file_name;
@@ -246,7 +277,11 @@ system_open (void *stack_pointer)
   
   //check to see if file opened successfully 
   lock_acquire (&filesys_lock);
-  open_file = filesys_open ((char *) file_name);
+  open_file = filesys_open ((char *) file_name); 
+  /*
+   * Change filesys open method. We want to do the path tokenisation here since traversing happens in many places.
+   * Also, change dir lookup. 
+   */ 
   lock_release (&filesys_lock);
   if (open_file == NULL)
     return -1;
@@ -494,6 +529,72 @@ void system_close (void *stack_pointer)
   }
   //</connie, chiahua>
 }
+//<connie>
+void system_chdir (void *stack_pointer)
+{
+  int dir;
+  
+  // get dir from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  dir = *(int*) stack_pointer;
+}
+
+bool system_mkdir (void *stack_pointer)
+{
+  char *dir;
+  
+  //get dir from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  dir = *(int*) stack_pointer;
+  
+  if(strlen(dir) == 0) {
+    return false;
+  }
+  return true;
+}
+
+void system_readdir (void *stack_pointer)
+{
+  int fd;
+  int name;
+
+  //get fd from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //get name from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  name = *(int*) stack_pointer;
+}
+
+void system_isdir (void *stack_pointer)
+{
+  int fd;
+  //struct file *open_file;
+  
+  //get fd from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+  
+  //open_file = thread_current ()->fd_pointers[fd-2]; //not done
+  
+}
+
+void system_inumber (void *stack_pointer)
+{
+  int fd;
+  
+  //get fd from the stack
+  stack_pointer = (int*) stack_pointer + 1;
+  check_pointer ((void*) stack_pointer);
+  fd = *(int*) stack_pointer;
+}
+//</connie>
 
 //<cris>
 void check_pointer (void* pointer)

@@ -1,23 +1,14 @@
 #include "filesys/directory.h"
-#include <stdio.h>
-#include <string.h>
-#include <list.h>
-#include "filesys/filesys.h"
-#include "filesys/inode.h"
-#include "threads/malloc.h"
-
-/* A directory. */
-struct dir 
-  {
-    struct inode *inode;                /* Backing store. */
-    off_t pos;                          /* Current position. */
-  };
 
 /* A single directory entry. */
 struct dir_entry 
   {
     block_sector_t inode_sector;        /* Sector number of header. */
     char name[NAME_MAX + 1];            /* Null terminated file name. */
+    //Should we change ^^ above to char *name, and use name = malloc (size of namestring.length)
+    //so that, no matter how long name is, it would take up same amount of space on disk and memory? 
+    
+    
     bool in_use;                        /* In use or free? */
   };
 
@@ -26,8 +17,35 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  bool success;
+  success = inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
+  struct inode *this_inode = inode_open(sector);
+  struct dir *this_dir = dir_open(this_inode);
+  if(sector == ROOT_DIR_SECTOR)
+  {
+    dir_add (this_dir, ".", sector);
+    dir_add (this_dir, "..", sector);
+  }
+  else
+  {
+    dir_add (this_dir, ".", sector);
+    dir_add (this_dir, "..", thread_current()->pwd->inode->sector);
+  }
+  dir_close(this_dir);
+  return success;
 }
+
+    /*
+    char dot[2];
+    dot[0] = '.';
+    dot[1] = '\0';
+    char dotdot[3];
+    dotdot[0] = '.';
+    dotdot[1] = '.';
+    dotdot[2] = '\0';
+    * */
+    
+    
 
 /* Opens and returns the directory for the given INODE, of which
    it takes ownership.  Returns a null pointer on failure. */
@@ -100,14 +118,16 @@ lookup (const struct dir *dir, const char *name,
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) 
+  {
     if (e.in_use && !strcmp (name, e.name)) 
-      {
-        if (ep != NULL)
-          *ep = e;
-        if (ofsp != NULL)
-          *ofsp = ofs;
-        return true;
-      }
+    {
+      if (ep != NULL)
+        *ep = e;
+      if (ofsp != NULL)
+        *ofsp = ofs;
+      return true;
+    }
+  }
   return false;
 }
 

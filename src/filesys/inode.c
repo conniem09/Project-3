@@ -1,5 +1,4 @@
 #include "filesys/inode.h"
-#include <list.h>
 #include <debug.h>
 #include <round.h>
 #include <string.h>
@@ -7,26 +6,9 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 
-/* Identifies an inode. */
-#define INODE_MAGIC 0x494e4f44
-#define SECTORSIZE 512		       //Bytes per sector
-#define POINTERS_PER_SECTOR 128	 //Pointers that fit on a sector
-#define NUM_IBs 20               //Number of IBs pointed by iNode
-#define SECS_PER_CHUNK 8         //Sectors per datablock
 
 block_sector_t empty_sector[POINTERS_PER_SECTOR];
 
-/* On-disk inode.
-   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-struct inode_disk
-{
-  //<Chiahua>
-  block_sector_t ib_ptr[NUM_IBs];         /* 32 Level 1 Indirect Pointer */
-  unsigned length;                   /* Length of File */
-  unsigned magic;                    /* Magic number. */
-  unsigned unused[POINTERS_PER_SECTOR-NUM_IBs-2];   /* Unused space occupier */
-  //</Chiahua>
-};
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -35,17 +17,6 @@ bytes_to_sectors (off_t size)
 {
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
-
-/* In-memory inode. */
-struct inode 
-{
-  struct list_elem elem;              /* Element in inode list. */
-  block_sector_t sector;              /* Sector number of disk location. */
-  int open_cnt;                       /* Number of openers. */
-  bool removed;                       /* True if deleted, false otherwise. */
-  int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-  struct inode_disk data;             /* Inode content. */
-};
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -181,7 +152,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -194,6 +165,7 @@ inode_create (block_sector_t sector, off_t length)
   if (disk_inode != NULL)
   {
     disk_inode->magic = INODE_MAGIC;
+    disk_inode->is_dir = is_dir;
     //Write inode disk to disk
     //Before calling block write, need to update length
     disk_inode->length = length;

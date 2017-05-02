@@ -111,6 +111,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->pwd = NULL;// dir_open_root ();
+
+
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -181,7 +185,16 @@ register_child_with_parent (const char *name, int priority,
     {
       //found child thread. Register parent with child, add child to parent
       child_thread->parent = parent;
-      
+      //<cris>
+      if(parent->pwd == NULL)
+      {
+        child_thread->pwd = dir_open_root();
+      }
+      else
+      {
+        child_thread->pwd = parent->pwd;
+      }
+      //</cris>
       //wait for child to finish load. If success, continue registration
       //else, abort registration
       sema_down (&thread_current ()->wait_for_load);
@@ -576,7 +589,6 @@ init_thread (struct thread *t, const char *name, int priority)
       t->fd_pointers[i] = 0;
   }
   //</sabrina>
-
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

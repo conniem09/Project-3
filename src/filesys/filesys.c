@@ -66,17 +66,24 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir;
   struct inode *inode = NULL;
 
-	if(absolute){
-		if (dir != NULL){
-			dir_lookup (dir, name, &inode);
-		}
-		dir_close (dir);
-	} else {
-		
-	}
+  //if the filepath is absolute, start traversing the directory from root
+  if(absolute){
+	dir = dir_open_root (); 
+  }
+  else
+  {
+	//if the filepath is relative, start traversing the directory from pwd
+	dir = thread_current()->pwd;
+  }
+  
+  if (dir != NULL)
+  {
+    dir_lookup (dir, name, &inode);
+  }
+  dir_close (dir);
 
   return file_open (inode);
 }

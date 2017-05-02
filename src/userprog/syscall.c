@@ -43,10 +43,10 @@ void system_seek (void *stack_pointer);
 unsigned system_tell (void *stack_pointer);
 void system_close (void *stack_pointer);
 //<connie>
-void system_chdir (void *stack_pointer);
+bool system_chdir (void *stack_pointer);
 bool system_mkdir (void *stack_pointer);
 void system_readdir (void *stack_pointer);
-void system_isdir (void *stack_pointer);
+bool system_isdir (void *stack_pointer);
 void system_inumber (void *stack_pointer);
 //</connie>
 
@@ -274,6 +274,9 @@ system_open (void *stack_pointer)
   check_pointer (stack_pointer);
   file_name = *(int*) stack_pointer;
   check_pointer ((int*) file_name);
+  
+  //Check file_name to see if it contains '/'. 
+  //If yes, it requires traversing directories
   
   //check to see if file opened successfully 
   lock_acquire (&filesys_lock);
@@ -530,7 +533,7 @@ void system_close (void *stack_pointer)
   //</connie, chiahua>
 }
 //<connie>
-void system_chdir (void *stack_pointer)
+bool system_chdir (void *stack_pointer)
 {
   int dir;
   
@@ -538,6 +541,16 @@ void system_chdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
+  /*
+   * open_file = filesys_open (directory or path name);
+   * if (open_file != NULL) aka opened successfully,
+   * {
+   *    thread_current ()->pwd = open file
+   *    return true
+   * }
+   * else
+   *    return false;
+   */ 
 }
 
 bool system_mkdir (void *stack_pointer)
@@ -552,6 +565,12 @@ bool system_mkdir (void *stack_pointer)
   if(strlen(dir) == 0) {
     return false;
   }
+  //Incomplete. Use dir_add somehow
+  /*
+   * struct dir = thread_current->pwd;
+   * dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
+
+   */ 
   return true;
 }
 
@@ -571,7 +590,7 @@ void system_readdir (void *stack_pointer)
   name = *(int*) stack_pointer;
 }
 
-void system_isdir (void *stack_pointer)
+bool system_isdir (void *stack_pointer)
 {
   int fd;
   //struct file *open_file;
@@ -605,3 +624,6 @@ void check_pointer (void* pointer)
   }
 }
 //</cris>
+
+
+

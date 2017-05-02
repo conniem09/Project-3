@@ -66,14 +66,16 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *root_dir = dir_open_root ();
   struct inode *inode = NULL;
+  bool path = is_path (name);
+  bool absolute = (*name == '\\');
 
-	if(absolute){
-		if (dir != NULL){
-			dir_lookup (dir, name, &inode);
+	if (absolute){
+		if (root_dir != NULL){
+			dir_lookup (root_dir, name, &inode);
 		}
-		dir_close (dir);
+		dir_close (root_dir);
 	} else {
 		
 	}
@@ -106,3 +108,17 @@ do_format (void)
   free_map_close ();
   printf ("done.\n");
 }
+
+//<Chiahua>
+static bool 
+is_path (char *file_name)
+{
+  while (*file_name != '\0')
+  {
+    if (*file_name == '\\')
+      return true;
+    file_name++;
+  }
+  return false;
+} 
+//</Chiahua>

@@ -594,16 +594,25 @@ bool system_mkdir (void *stack_pointer)
   }
   
   //allocate a new sector for the new directory
-  inode_addr = free_map_allocate(1, &inode_addr);
+  free_map_allocate(1, &inode_addr);
   
   //find the directory were supposed to add to
   parent_inode = dir_traversal((char*) dir, true);
-  
+
+  /*if (!parent_inode->data.is_dir)  //TODO must fail it when parent is file
+  {
+    inode_close (parent_inode);
+    //Inserted this if statement. Make sure freeing things correctly
+    return false;
+  }
+  inode_close (parent_inode);*/
+
   //add a new directory to directory stored in parent_dir
   dir_create(inode_addr, 16, parent_inode -> sector);
   parent_dir = dir_open(parent_inode);
-  success = dir_add(parent_dir, dir_token_last((char*)dir), inode_addr);
-  
+  char * last_token = dir_token_last((char*) dir);
+  success = dir_add(parent_dir, last_token, inode_addr);
+  free (last_token);
   dir_close(parent_dir);
   return success;
 }

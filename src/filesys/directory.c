@@ -19,6 +19,7 @@ dir_create (block_sector_t sector, size_t entry_cnt, block_sector_t parent)
 {
   bool success;
   success = inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
+    
   struct inode *this_inode = inode_open(sector);
   struct dir *this_dir = dir_open(this_inode);
   dir_add (this_dir, ".", sector); //add ourselves to the directory
@@ -150,11 +151,14 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
+  {
     return false;
-
+  }
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
+  {
     goto done;
+  }
 
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
@@ -261,6 +265,7 @@ int path_tokens (char* name) {
 struct inode *
 dir_traversal(char *name, bool ignore_last)
 {
+	//printf("Path: %s\n", name);
   struct dir *temp_dir = NULL;
   struct inode *inode = NULL;
   struct dir *dir = NULL;
@@ -288,6 +293,7 @@ dir_traversal(char *name, bool ignore_last)
     for(token = strtok_r (path, "/", &save_ptr); token != NULL && num_tokens >1; 
         token = strtok_r (NULL, "/", &save_ptr))
     {
+		//printf("Token %s\n", token);
       num_tokens--;
       //look to see if the directory exists
 

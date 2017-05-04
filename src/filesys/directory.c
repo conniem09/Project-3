@@ -15,37 +15,17 @@ struct dir_entry
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
-dir_create (block_sector_t sector, size_t entry_cnt)
+dir_create (block_sector_t sector, size_t entry_cnt, block_sector_t parent)
 {
   bool success;
   success = inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
   struct inode *this_inode = inode_open(sector);
   struct dir *this_dir = dir_open(this_inode);
-  if(sector == ROOT_DIR_SECTOR)
-  {
-    dir_add (this_dir, ".", sector);
-    dir_add (this_dir, "..", sector);
-  }
-  else
-  {
-    dir_add (this_dir, ".", sector);
-    dir_add (this_dir, "..", thread_current()->pwd->inode->sector);
-  }
+  dir_add (this_dir, ".", sector); //add ourselves to the directory
+  dir_add (this_dir, "..", parent); //add our parent to the directory
   dir_close(this_dir);
   return success;
 }
-
-    /*
-    char dot[2];
-    dot[0] = '.';
-    dot[1] = '\0';
-    char dotdot[3];
-    dotdot[0] = '.';
-    dotdot[1] = '.';
-    dotdot[2] = '\0';
-    * */
-    
-    
 
 /* Opens and returns the directory for the given INODE, of which
    it takes ownership.  Returns a null pointer on failure. */
@@ -254,3 +234,113 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+/*
+We can write a method that counts the number of steps in a path. 
+We can then write another method that takes 1 step. 
+Each of these two methods would make a copy of the path, then strtok it.
+
+*/
+
+int path_tokens (char* name) {
+	char *path = (char*) malloc (strlen(name)+1);
+	strlcpy (path, name, strlen(name)+1);
+	char *token;
+  char *save_ptr;
+  int num_tokens = 0;
+  
+	for(token = strtok_r (path, "/", &save_ptr); token != NULL; 
+      token = strtok_r (NULL, "/", &save_ptr))
+  {
+    num_tokens++;
+  }
+  free(path);
+  return num_tokens;
+}
+
+struct inode *
+dir_traversal(char *name, bool ignore_last)
+{
+  struct dir *temp_dir = NULL;
+  struct inode *inode = NULL;
+  struct dir *dir = NULL;
+  char *path = (char*) malloc (strlen(name)+1);
+  strlcpy (path, name, strlen(name)+1);
+  bool absolute = (*name == '/' || thread_current()->pwd == NULL);
+  char *token;
+  char *save_ptr;
+  int num_tokens = path_tokens(name) + !ignore_last;
+  
+	if (absolute){
+		//if the path is absolute, start from root
+		dir = dir_open_root ();
+	} else {
+		//if the path is relative, start from pwd
+		dir = dir_reopen(thread_current ()->pwd);
+	}
+
+  inode = dir->inode;
+
+  //make sure the dir isnt NULL
+  if (dir != NULL)
+  {
+    //iterate through each subdirectory
+    for(token = strtok_r (path, "/", &save_ptr); token != NULL && num_tokens >1; 
+        token = strtok_r (NULL, "/", &save_ptr))
+    {
+      num_tokens--;
+      //look to see if the directory exists
+
+      dir_lookup (dir, token, &inode);
+      //check if the next token is a directory or a file
+      if(inode != NULL)
+      {
+        if(inode->data.is_dir)
+        {
+          //is a dir
+          temp_dir = dir;
+          dir = dir_open(inode);
+          dir_close(temp_dir);
+        }
+        else
+        {
+          //is a file
+          break;
+        }
+      }
+    }
+    inode = inode_reopen(inode);
+    dir_close(dir);
+
+  }
+  return inode;
+}
+
+char *
+dir_token_last (char * path)
+{
+  char last[strlen(path)+1];
+	strlcpy (&last, path, strlen(path)+1);
+  char *token = NULL;
+  char *save_ptr= NULL;
+  char *prev = NULL;
+  
+  if(strlen(path) == 0){
+    return path;
+  }
+  for(token = strtok_r (&last, "/", &save_ptr); token != NULL; 
+        token = strtok_r (NULL, "/", &save_ptr))
+  {
+    prev = token;
+  }
+  char *result = (char*) malloc (strlen(prev)+1);
+	strlcpy (result, prev, strlen(prev)+1);
+  return result;
+   
+  
+}
+
+
+
+
+

@@ -25,6 +25,7 @@
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "filesys/free-map.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 
@@ -118,7 +119,7 @@ syscall_handler (struct intr_frame *f)
       system_close (stack_pointer);
       break;
     case SYS_CHDIR:
-      system_chdir (stack_pointer);
+      f->eax = system_chdir (stack_pointer);
       break;
     case SYS_MKDIR:
       f->eax = system_mkdir (stack_pointer);
@@ -278,6 +279,9 @@ system_open (void *stack_pointer)
   //Check file_name to see if it contains '/'. 
   //If yes, it requires traversing directories
   
+  if (strlen((char *)file_name) == 0)
+    return -1;
+  
   //check to see if file opened successfully 
   lock_acquire (&filesys_lock);
   open_file = filesys_open ((char *) file_name); 
@@ -304,6 +308,7 @@ system_open (void *stack_pointer)
       //</sabrina, cris>
     }
   }
+  return -1;
 }
 
 //Returns the size, in bytes, of the file open as fd.
@@ -536,42 +541,60 @@ void system_close (void *stack_pointer)
 bool system_chdir (void *stack_pointer)
 {
   int dir;
+  struct dir *directory = NULL;
   
   // get dir from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
   /*
-   * open_file = filesys_open (directory or path name);
-   * if (open_file != NULL) aka opened successfully,
-   * {
-   *    thread_current ()->pwd = open file
-   *    return true
-   * }
-   * else
-   *    return false;
-   */ 
+  struct file *open_file = filesys_open ((char*) dir);  //Dir lookup?
+  if (open_file != NULL)
+  {
+    struct file *openfile = filesys_open ((const char *) dir);
+      return true;
+      
+  }
+  else
+    return false;*/
+    directory = dir_open (dir_traversal ((char *) dir, false));
+    if (directory)
+    {
+      thread_current() ->pwd = directory;
+    }
+    return (directory != NULL);
 }
 
 bool system_mkdir (void *stack_pointer)
 {
-  char *dir;
-  
+  int dir;
+  block_sector_t inode_addr;
+  struct dir *parent_dir = NULL;
+  struct inode *parent_inode = NULL;
+  bool success = false;
   //get dir from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
   
-  if(strlen(dir) == 0) {
-    return false;
+  //if the string is the empty string, return false;
+  if(strlen((char *)dir) == 0) {
+    return success;
   }
-  //Incomplete. Use dir_add somehow
-  /*
-   * struct dir = thread_current->pwd;
-   * dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
-
-   */ 
-  return true;
+  
+  //allocate a new sector for the new directory
+  inode_addr = free_map_allocate(1, &inode_addr);
+  
+  //find the directory were supposed to add to
+  parent_inode = dir_traversal((char*) dir, true);
+  
+  //add a new directory to directory stored in parent_dir
+  dir_create(inode_addr, 16, parent_inode -> sector);
+  parent_dir = dir_open(parent_inode);
+  success = dir_add(parent_dir, dir_token_last((char*)dir), inode_addr);
+  
+  dir_close(parent_dir);
+  return success;
 }
 
 void system_readdir (void *stack_pointer)
@@ -601,7 +624,7 @@ bool system_isdir (void *stack_pointer)
   fd = *(int*) stack_pointer;
   
   //open_file = thread_current ()->fd_pointers[fd-2]; //not done
-  
+
 }
 
 void system_inumber (void *stack_pointer)

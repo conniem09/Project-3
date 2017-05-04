@@ -394,6 +394,8 @@ system_read (void *stack_pointer)
 int 
 system_write (void *stack_pointer)
 {
+  //TODO: Prohibit writing to directories
+  
   //read paramaters off the stack 
   int fd;
   int string;
@@ -440,7 +442,16 @@ system_write (void *stack_pointer)
       if (thread_current ()->fd_pointers[fd - 2])
       {
         lock_acquire (&filesys_lock);
-        result = file_write (thread_current ()->fd_pointers[fd - 2], (void*) string, length);
+        struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+        block_sector_t sector = inode_get_inumber (openFile->inode);
+        struct inode *inode = inode_open (sector);
+        if (inode->data.is_dir)
+        {
+          inode_close (inode);
+          return -1;
+        }
+        inode_close (inode);
+        result = file_write (openFile, (void*) string, length);
         lock_release (&filesys_lock);
         return result;
       }

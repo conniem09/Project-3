@@ -609,6 +609,7 @@ bool system_mkdir (void *stack_pointer)
   dir_create(inode_addr, 16, parent_inode -> sector);
   parent_dir = dir_open(parent_inode);
   char * last_token = dir_token_last((char*) dir);
+  printf("last_token is %s\n", last_token);
   success = dir_add(parent_dir, last_token, inode_addr);
   free (last_token);
   dir_close(parent_dir);
@@ -638,8 +639,10 @@ bool system_readdir (void *stack_pointer)
   if (!inode->data.is_dir)
     return false;
   struct dir* dir = dir_open (inode); 
-  bool tempres = dir_readdir (dir, (char*)name);
-  return tempres;  
+  printf("name before readdir is %s\n", name);
+  bool result = dir_readdir (dir, (char*)name);
+  printf("name after readdir is %s\n", name);
+  return result;  
 }
 
 bool system_isdir (void *stack_pointer)

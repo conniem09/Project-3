@@ -46,7 +46,7 @@ void system_close (void *stack_pointer);
 //<connie>
 bool system_chdir (void *stack_pointer);
 bool system_mkdir (void *stack_pointer);
-void system_readdir (void *stack_pointer);
+bool system_readdir (void *stack_pointer);
 bool system_isdir (void *stack_pointer);
 void system_inumber (void *stack_pointer);
 //</connie>
@@ -125,7 +125,7 @@ syscall_handler (struct intr_frame *f)
       f->eax = system_mkdir (stack_pointer);
       break;
     case SYS_READDIR:
-      system_readdir (stack_pointer);
+      f->eax = system_readdir (stack_pointer);
       break;
     case SYS_ISDIR:
       system_isdir (stack_pointer);
@@ -281,18 +281,20 @@ system_open (void *stack_pointer)
   
   if (strlen((char *)file_name) == 0)
     return -1;
-  
+      
   //check to see if file opened successfully 
   lock_acquire (&filesys_lock);
-  open_file = filesys_open ((char *) file_name); 
+  open_file = filesys_open ((char *) file_name);
   /*
    * Change filesys open method. We want to do the path tokenisation here since traversing happens in many places.
    * Also, change dir lookup. 
    */ 
   lock_release (&filesys_lock);
-  if (open_file == NULL)
-    return -1;
   
+  if (open_file == NULL)
+  {
+    return -1;
+  }
   //iterate through the array to find empty spots 
   for (i = 0; i < MAX_FILES; i++)
   {
@@ -617,7 +619,7 @@ bool system_mkdir (void *stack_pointer)
   return success;
 }
 
-void system_readdir (void *stack_pointer)
+bool system_readdir (void *stack_pointer)
 {
   int fd;
   int name;
@@ -631,6 +633,17 @@ void system_readdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   name = *(int*) stack_pointer;
+  
+  //get the file from the file descriptor array
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  
+  //open the inode of the file
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  if (!inode->data.is_dir)
+    return false;
+  struct dir* dir = dir_open (inode); 
+  bool tempres = dir_readdir (dir, (char*)name);
+  return tempres;  
 }
 
 bool system_isdir (void *stack_pointer)
@@ -643,7 +656,10 @@ bool system_isdir (void *stack_pointer)
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
   
-  //open_file = thread_current ()->fd_pointers[fd-2]; //not done
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  file_close(openFile);
+  return inode->data.is_dir;
 
 }
 
@@ -655,6 +671,10 @@ void system_inumber (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
+  
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  return inode_get_inumber (inode);
 }
 //</connie>
 

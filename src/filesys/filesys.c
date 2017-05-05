@@ -50,9 +50,12 @@ filesys_create (const char *name, off_t initial_size)
   block_sector_t inode_sector = 0;
   
   struct inode *parent_inode = dir_traversal(name, true); 
+  if(parent_inode->removed)
+  {
+    return false;
+  }
   char *item_name = dir_token_last (name);
   struct dir *dir = dir_open(parent_inode);  //Change this
-  //printf("FS Create: %u\n", dir ->inode->sector); 
   bool a = dir != NULL ;
   bool b = free_map_allocate (1, &inode_sector);
   bool c = inode_create (inode_sector, initial_size, false);
@@ -81,7 +84,7 @@ filesys_open (const char *name)
   struct inode *inode = NULL;
   inode = dir_traversal(name, false);
 
-  return file_open (inode);
+  return file_open(inode);
 }
 
 
@@ -89,7 +92,7 @@ filesys_open (const char *name)
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
-bool
+/*bool
 filesys_remove (const char *name) 
 {
   struct dir *dir = dir_open_root ();
@@ -97,7 +100,20 @@ filesys_remove (const char *name)
   dir_close (dir); 
 
   return success;
+}*/
+
+bool
+filesys_remove (const char *name) 
+{
+  struct inode *parent_inode = dir_traversal(name, true);
+  struct dir *dir = dir_open (parent_inode);
+  char* child_name = dir_token_last(name);
+  bool success = dir != NULL && dir_remove (dir, child_name);
+  dir_close (dir); 
+
+  return success;
 }
+
 
 /* Formats the file system. */
 static void

@@ -1,5 +1,7 @@
 #include "filesys/directory.h"
 
+
+
 /* A single directory entry. */
 struct dir_entry 
   {
@@ -210,9 +212,25 @@ dir_remove (struct dir *dir, const char *name)
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
     goto done;
 
-  /* Remove inode. */
+  if (inode->data.is_dir)
+  {
+    char buf[NAME_MAX + 1];
+    struct dir *toBeRemoved = dir_open(inode);
+    if (dir_readdir (toBeRemoved, buf))
+    {
+       return false;
+    } 
+    else
+    {
+      dir_remove(toBeRemoved, ".");
+      dir_remove(toBeRemoved, "..");
+    } 
+  }
+  
   inode_remove (inode);
   success = true;
+  
+
 
  done:
   inode_close (inode);
@@ -230,7 +248,7 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
-      if (e.in_use)
+      if (e.in_use && !strcmp(e.name, ".") && !strcmp(e.name, ".."))
         {
           strlcpy (name, e.name, NAME_MAX + 1);
           return true;
@@ -238,6 +256,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+
 
 /*
 We can write a method that counts the number of steps in a path. 

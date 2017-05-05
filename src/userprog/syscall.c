@@ -25,6 +25,7 @@
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "filesys/free-map.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 
@@ -43,10 +44,10 @@ void system_seek (void *stack_pointer);
 unsigned system_tell (void *stack_pointer);
 void system_close (void *stack_pointer);
 //<connie>
-void system_chdir (void *stack_pointer);
+bool system_chdir (void *stack_pointer);
 bool system_mkdir (void *stack_pointer);
-void system_readdir (void *stack_pointer);
-void system_isdir (void *stack_pointer);
+bool system_readdir (void *stack_pointer);
+bool system_isdir (void *stack_pointer);
 void system_inumber (void *stack_pointer);
 //</connie>
 
@@ -118,13 +119,13 @@ syscall_handler (struct intr_frame *f)
       system_close (stack_pointer);
       break;
     case SYS_CHDIR:
-      system_chdir (stack_pointer);
+      f->eax = system_chdir (stack_pointer);
       break;
     case SYS_MKDIR:
       f->eax = system_mkdir (stack_pointer);
       break;
     case SYS_READDIR:
-      system_readdir (stack_pointer);
+      f->eax = system_readdir (stack_pointer);
       break;
     case SYS_ISDIR:
       system_isdir (stack_pointer);
@@ -275,17 +276,21 @@ system_open (void *stack_pointer)
   file_name = *(int*) stack_pointer;
   check_pointer ((int*) file_name);
   
+  //Check file_name to see if it contains '/'. 
+  //If yes, it requires traversing directories
+  
+  if (strlen((char *)file_name) == 0)
+    return -1;
+      
   //check to see if file opened successfully 
   lock_acquire (&filesys_lock);
-  open_file = filesys_open ((char *) file_name); 
-  /*
-   * Change filesys open method. We want to do the path tokenisation here since traversing happens in many places.
-   * Also, change dir lookup. 
-   */ 
+  open_file = filesys_open ((char *) file_name);
   lock_release (&filesys_lock);
-  if (open_file == NULL)
-    return -1;
   
+  if (open_file == NULL)
+  {
+    return -1;
+  }
   //iterate through the array to find empty spots 
   for (i = 0; i < MAX_FILES; i++)
   {
@@ -301,6 +306,7 @@ system_open (void *stack_pointer)
       //</sabrina, cris>
     }
   }
+  return -1;
 }
 
 //Returns the size, in bytes, of the file open as fd.
@@ -386,6 +392,8 @@ system_read (void *stack_pointer)
 int 
 system_write (void *stack_pointer)
 {
+  //TODO: Prohibit writing to directories
+  
   //read paramaters off the stack 
   int fd;
   int string;
@@ -432,7 +440,16 @@ system_write (void *stack_pointer)
       if (thread_current ()->fd_pointers[fd - 2])
       {
         lock_acquire (&filesys_lock);
-        result = file_write (thread_current ()->fd_pointers[fd - 2], (void*) string, length);
+        struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+        block_sector_t sector = inode_get_inumber (openFile->inode);
+        struct inode *inode = inode_open (sector);
+        if (inode->data.is_dir)
+        {
+          inode_close (inode);
+          return -1;
+        }
+        inode_close (inode);
+        result = file_write (openFile, (void*) string, length);
         lock_release (&filesys_lock);
         return result;
       }
@@ -530,32 +547,75 @@ void system_close (void *stack_pointer)
   //</connie, chiahua>
 }
 //<connie>
-void system_chdir (void *stack_pointer)
+bool system_chdir (void *stack_pointer)
 {
   int dir;
+  struct dir *directory = NULL;
   
   // get dir from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
+  /*
+  struct file *open_file = filesys_open ((char*) dir);  //Dir lookup?
+  if (open_file != NULL)
+  {
+    struct file *openfile = filesys_open ((const char *) dir);
+      return true;
+      
+  }
+  else
+    return false;*/
+    directory = dir_open (dir_traversal ((char *) dir, false));
+    if (directory)
+    {
+      thread_current() ->pwd = directory;
+    }
+    return (directory != NULL);
 }
 
 bool system_mkdir (void *stack_pointer)
 {
-  char *dir;
-  
+  int dir;
+  block_sector_t inode_addr;
+  struct dir *parent_dir = NULL;
+  struct inode *parent_inode = NULL;
+  bool success = false;
   //get dir from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
   
-  if(strlen(dir) == 0) {
+  //if the string is the empty string, return false;
+  if(strlen((char *)dir) == 0) {
+    return success;
+  }
+  
+  //allocate a new sector for the new directory
+  free_map_allocate(1, &inode_addr);
+  
+  //find the directory were supposed to add to
+  parent_inode = dir_traversal((char*) dir, true);
+
+  /*if (!parent_inode->data.is_dir)  //TODO must fail it when parent is file
+  {
+    inode_close (parent_inode);
+    //Inserted this if statement. Make sure freeing things correctly
     return false;
   }
-  return true;
+  inode_close (parent_inode);*/
+
+  //add a new directory to directory stored in parent_dir
+  dir_create(inode_addr, 16, parent_inode -> sector);
+  parent_dir = dir_open(parent_inode);
+  char * last_token = dir_token_last((char*) dir);
+  success = dir_add(parent_dir, last_token, inode_addr);
+  free (last_token);
+  dir_close(parent_dir);
+  return success;
 }
 
-void system_readdir (void *stack_pointer)
+bool system_readdir (void *stack_pointer)
 {
   int fd;
   int name;
@@ -569,9 +629,20 @@ void system_readdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   name = *(int*) stack_pointer;
+  
+  //get the file from the file descriptor array
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  
+  //open the inode of the file
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  if (!inode->data.is_dir)
+    return false;
+  struct dir* dir = dir_open (inode); 
+  bool tempres = dir_readdir (dir, (char*)name);
+  return tempres;  
 }
 
-void system_isdir (void *stack_pointer)
+bool system_isdir (void *stack_pointer)
 {
   int fd;
   //struct file *open_file;
@@ -581,8 +652,11 @@ void system_isdir (void *stack_pointer)
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
   
-  //open_file = thread_current ()->fd_pointers[fd-2]; //not done
-  
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  file_close(openFile);
+  return inode->data.is_dir;
+
 }
 
 void system_inumber (void *stack_pointer)
@@ -593,6 +667,10 @@ void system_inumber (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
+  
+  struct file *openFile = thread_current ()->fd_pointers[fd - 2];
+  struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
+  return inode_get_inumber (inode);
 }
 //</connie>
 
@@ -605,3 +683,6 @@ void check_pointer (void* pointer)
   }
 }
 //</cris>
+
+
+

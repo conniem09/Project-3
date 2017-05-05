@@ -192,7 +192,8 @@ register_child_with_parent (const char *name, int priority,
       }
       else
       {
-        child_thread->pwd = parent->pwd;
+        child_thread->pwd = dir_reopen(parent->pwd);
+        //child_thread->pwd = parent->pwd;
       }
       //</cris>
       //wait for child to finish load. If success, continue registration

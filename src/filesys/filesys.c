@@ -105,12 +105,14 @@ filesys_remove (const char *name)
 bool
 filesys_remove (const char *name) 
 {
+  if(!strcmp(name, "/")){
+    return false;
+  }
   struct inode *parent_inode = dir_traversal(name, true);
   struct dir *dir = dir_open (parent_inode);
   char* child_name = dir_token_last(name);
   bool success = dir != NULL && dir_remove (dir, child_name);
-  dir_close (dir); 
-
+  dir_close (dir);
   return success;
 }
 

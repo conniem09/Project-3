@@ -1,3 +1,12 @@
+//Project 4
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
+
 #include "filesys/filesys.h"
 #include <debug.h>
 #include <stdio.h>
@@ -49,21 +58,11 @@ filesys_create (const char *name, off_t initial_size)
 {
   block_sector_t inode_sector = 0;
   
-  struct inode *parent_inode = dir_traversal(name, true); 
-  /*
-  if(parent_inode->removed)
-  {
-    return false;
-  }*/
+  //<Cris>
+  struct inode *parent_inode = dir_traversal (name, true); 
   char *item_name = dir_token_last (name);
-  struct dir *dir = dir_open(parent_inode);  //Change this
-  /*
-  bool a = dir != NULL ;
-  bool b = free_map_allocate (1, &inode_sector);
-  bool c = inode_create (inode_sector, initial_size, false);
-  bool d = dir_add (dir, item_name, inode_sector);
-  bool success = (a && b && c && d);
-  * */
+  struct dir *dir = dir_open (parent_inode);  
+  //</Cris>
   bool success = (dir != NULL 
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)
@@ -82,9 +81,11 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {  
+  //<Connie>
   struct inode *inode = NULL;
-  inode = dir_traversal(name, false);
-  return file_open(inode);
+  inode = dir_traversal (name, false);
+  return file_open (inode);
+  //</Connie>
 }
 
 
@@ -92,27 +93,20 @@ filesys_open (const char *name)
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
-/*bool
-filesys_remove (const char *name) 
-{
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
-
-  return success;
-}*/
-
 bool
 filesys_remove (const char *name) 
 {
-  if(!strcmp(name, "/")){
+  //<Cris>
+  if(!strcmp(name, "/"))
+  {
     return false;
   }
-  struct inode *parent_inode = dir_traversal(name, true);
+  struct inode *parent_inode = dir_traversal (name, true);
   struct dir *dir = dir_open (parent_inode);
-  char* child_name = dir_token_last(name);
+  char* child_name = dir_token_last (name);
   bool success = dir != NULL && dir_remove (dir, child_name);
   dir_close (dir);
+  //</Cris>
   return success;
 }
 
@@ -129,6 +123,9 @@ do_format (void)
   printf ("done.\n");
 }
 
+/*Scans a given string to see if it contains the character '\', 
+which would indicate that it is a path rather than a 
+file or directory name. */
 //<Chiahua>
 bool 
 is_path (const char *file_name)
@@ -142,30 +139,3 @@ is_path (const char *file_name)
   return false;
 } 
 //</Chiahua>
-
-
-
-
-
-  /*
-  char *path = (char *) malloc(strlen(name)+1);
-  strlcpy(path, name, strlen(name)+1);
-  int index;
-  bool valid_token = false;
-  bool replaced_slash = false;
-  for (index = strlen(path)-1; index >=0 && !valid_token && !replaced_slash; index--)
-  {
-
-    if (*(path+index) != '/')
-      valid_token = true;
-    if (*(path+index) == '/')
-    {
-      replaced_slash = true;
-      *(path+index) = '\0';
-    }
-  }
-
-  printf("%s\n", path);
-  //delete last token (name); 
-  struct dir *dir = dir_open (fs_traversal(name));*/
-  //struct dir *dir = navigate;

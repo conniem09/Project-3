@@ -1,3 +1,11 @@
+//Project 4
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
 #include "filesys/inode.h"
 #include <debug.h>
 #include <round.h>
@@ -64,9 +72,9 @@ byte_to_sector (struct inode *inode, off_t pos, bool extended, bool fill_hole)
       buffer[inode_index] = temp_sector;
 
       //inode has been changed, save it to disk.
-      block_write(fs_device, inode->sector, &buffer);
+      block_write (fs_device, inode->sector, &buffer);
       //Clear the garbage in IB on the disk 
-      block_write(fs_device, temp_sector, &empty_sector); 
+      block_write (fs_device, temp_sector, &empty_sector); 
       //</Chiahua>
     }
   }
@@ -90,13 +98,13 @@ byte_to_sector (struct inode *inode, off_t pos, bool extended, bool fill_hole)
   
       buffer[IB_index] = temp_sector;
       //Indirect block has been changed, save it to disk
-      block_write(fs_device, ib_address, &buffer);
+      block_write (fs_device, ib_address, &buffer);
       
       //update all 8 sectors in the datablock to 0
       int index;
       for (index = 0; index < SECS_PER_CHUNK; index++)
       {
-        block_write(fs_device, temp_sector + index, &empty_sector); 
+        block_write (fs_device, temp_sector + index, &empty_sector); 
       }
       //</Connie>
     }
@@ -139,11 +147,13 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
+  //<Chiahua>
   int index;
   for (index = 0; index < 128; index++)
   {
     empty_sector[index] = 0;
   }
+  //</Chiahua>
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -166,14 +176,18 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
   {
     disk_inode->magic = INODE_MAGIC;
     disk_inode->is_dir = is_dir;
-    //Write inode disk to disk
     //Before calling block write, need to update length
+    //<Cris>
     disk_inode->length = length;
+    //Write inode disk to disk
     block_write (fs_device, sector, disk_inode);
+    //</Cris>
+    //<Chiahua>
     struct inode *inode = inode_open (sector);
     //Allocate datablocks for file of length length
     byte_to_sector (inode, length, true, true);  
     inode_close (inode);
+    //</Chiahua>
     success = true;
     free (disk_inode);
   }
@@ -247,11 +261,10 @@ inode_close (struct inode *inode)
   {
     /* Remove from inode list and release lock. */
     list_remove (&inode->elem);
-
+    //<Connie>
     /* Deallocate blocks if removed. */
     if (inode->removed) 
     {
-      //<Connie>
       block_sector_t inode_buffer[POINTERS_PER_SECTOR];
       block_sector_t IB_buffer[POINTERS_PER_SECTOR];
       //Read inode from disk into buffer
@@ -284,6 +297,7 @@ inode_close (struct inode *inode)
     free (inode); 
   }
 }
+//</Connie>
 
 /* Marks INODE to be deleted when it is closed by the last caller who
    has it open. */
@@ -308,11 +322,13 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   while (size > 0) 
   {
     /* Disk sector to read, starting byte offset within sector. */
+    //<Connie>
     block_sector_t sector_idx = byte_to_sector (inode, offset, false, false);
     if (sector_idx == -1)
     {
       return 0; 
     }
+    //</Connie>
     int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
     /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -372,16 +388,20 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   {
     return 0;
   }
+  //<Chiahua>
   byte_to_sector (inode, offset+size, true, true);
   if (inode->data.length < size+offset)
   {
-    inode->data.length = size+offset;
-	block_write(fs_device, inode->sector, &inode->data);
+    inode->data.length = size + offset;
+	block_write (fs_device, inode->sector, &inode->data);
   }
+  //</Chiahua>
   while (size > 0) 
   {        
     /* Sector to write, starting byte offset within sector. */
-    block_sector_t sector_idx = byte_to_sector (inode, offset, false, false); 
+    //<Chiahua>
+    block_sector_t sector_idx = byte_to_sector (inode, offset, false, false);
+    //</Chiahua> 
     int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
     /* Bytes left in inode, bytes left in sector, lesser of the two. */

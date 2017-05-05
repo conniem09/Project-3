@@ -1,13 +1,17 @@
+//Project 4
 /* Student Information
- * Chia-Hua Lu              Sabrina Herrero             Connie Chen
- * CL38755                  SH44786                     CMC5837
- * thegoldflute@gmail.com   sabrinaherrero123@gmail.com conniem09@gmail.com
- * 52075                    52105                       52105
- * 
- * Cristian Martinez
- * CJM4686
- * criscubed@gmail.com
- * 52080
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
+//Previous Contributor
+/* Student Information
+ * Sabrina Herrero             
+ * SH44786                     
+ * sabrinaherrero123@gmail.com 
+ * 52105
  */
 
 #include "userprog/process.h"

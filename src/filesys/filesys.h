@@ -1,3 +1,11 @@
+//Project 4
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
 #ifndef FILESYS_FILESYS_H
 #define FILESYS_FILESYS_H
 

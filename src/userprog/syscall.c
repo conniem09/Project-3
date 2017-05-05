@@ -118,6 +118,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE:
       system_close (stack_pointer);
       break;
+    //<Connie>
     case SYS_CHDIR:
       f->eax = system_chdir (stack_pointer);
       break;
@@ -133,6 +134,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_INUMBER:
       system_inumber (stack_pointer);
       break;
+    //</Connie>
     //Invalid system call  
     default:              
       system_exit_helper (-1);
@@ -391,9 +393,7 @@ system_read (void *stack_pointer)
 //<cris, chiahua, connie, sabrina>
 int 
 system_write (void *stack_pointer)
-{
-  //TODO: Prohibit writing to directories
-  
+{  
   //read paramaters off the stack 
   int fd;
   int string;
@@ -556,24 +556,18 @@ bool system_chdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
-  /*
-  struct file *open_file = filesys_open ((char*) dir);  //Dir lookup?
-  if (open_file != NULL)
+  //<Chiahua>
+  directory = dir_open (dir_traversal ((char *) dir, false));
+  if (directory)
   {
-    struct file *openfile = filesys_open ((const char *) dir);
-      return true;
-      
+    thread_current() ->pwd = directory;
   }
-  else
-    return false;*/
-    directory = dir_open (dir_traversal ((char *) dir, false));
-    if (directory)
-    {
-      thread_current() ->pwd = directory;
-    }
-    return (directory != NULL);
+  //</Chiahua>
+  return (directory != NULL);
 }
+//</connie>
 
+//<Connie>
 bool system_mkdir (void *stack_pointer)
 {
   int dir;
@@ -585,7 +579,9 @@ bool system_mkdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   dir = *(int*) stack_pointer;
+  //</Connie>
   
+  //<Cris>
   //if the string is the empty string, return false;
   if(strlen((char *)dir) == 0) {
     return success;
@@ -597,25 +593,21 @@ bool system_mkdir (void *stack_pointer)
   //find the directory were supposed to add to
   parent_inode = dir_traversal((char*) dir, true);
 
-  /*if (!parent_inode->data.is_dir)  //TODO must fail it when parent is file
-  {
-    inode_close (parent_inode);
-    //Inserted this if statement. Make sure freeing things correctly
-    return false;
-  }
-  inode_close (parent_inode);*/
-
   //add a new directory to directory stored in parent_dir
   dir_create(inode_addr, 16, parent_inode -> sector);
   parent_dir = dir_open(parent_inode);
+  //<Chiahua>
   char * last_token = dir_token_last((char*) dir);
-  printf("last_token is %s\n", last_token);
+  //printf("last_token is %s\n", last_token);
   success = dir_add(parent_dir, last_token, inode_addr);
   free (last_token);
+  //</Chiahua>
   dir_close(parent_dir);
   return success;
+  //</Cris>
 }
 
+//<Connie>
 bool system_readdir (void *stack_pointer)
 {
   int fd;
@@ -630,7 +622,9 @@ bool system_readdir (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   name = *(int*) stack_pointer;
+  //</Connie>
   
+  //<Cris>
   //get the file from the file descriptor array
   struct file *openFile = thread_current ()->fd_pointers[fd - 2];
   
@@ -638,30 +632,34 @@ bool system_readdir (void *stack_pointer)
   struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
   if (!inode->data.is_dir)
     return false;
-  struct dir* dir = dir_open (inode); 
-  printf("name before readdir is %s\n", name);
-  bool result = dir_readdir (dir, (char*)name);
-  printf("name after readdir is %s\n", name);
+    
+  struct dir* dir = dir_open (inode);
+  bool result = dir_readdir (dir, (char*) name);
+  dir_close (dir);
   return result;  
+  //</Cris>
 }
 
+//<Cris>
 bool system_isdir (void *stack_pointer)
 {
   int fd;
-  //struct file *open_file;
   
   //get fd from the stack
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
+  //</Cris>
   
+  //<Connie>
   struct file *openFile = thread_current ()->fd_pointers[fd - 2];
   struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
-  file_close(openFile);
+  file_close (openFile);
   return inode->data.is_dir;
-
+  //</Connie>
 }
 
+//<Connie>
 void system_inumber (void *stack_pointer)
 {
   int fd;
@@ -670,7 +668,7 @@ void system_inumber (void *stack_pointer)
   stack_pointer = (int*) stack_pointer + 1;
   check_pointer ((void*) stack_pointer);
   fd = *(int*) stack_pointer;
-  
+    
   struct file *openFile = thread_current ()->fd_pointers[fd - 2];
   struct inode *inode = inode_open (inode_get_inumber (openFile->inode));
   return inode_get_inumber (inode);
@@ -680,7 +678,8 @@ void system_inumber (void *stack_pointer)
 //<cris>
 void check_pointer (void* pointer)
 {
-  if(pointer == NULL || is_kernel_vaddr(pointer) || !pagedir_get_page (thread_current() -> pagedir, pointer))
+  if(pointer == NULL || is_kernel_vaddr (pointer) || 
+     !pagedir_get_page (thread_current() -> pagedir, pointer))
   {
     system_exit_helper (-1);
   }

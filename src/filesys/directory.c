@@ -1,16 +1,18 @@
+//Project 4
+/* Student Information
+ * Chia-Hua Lu              Cristian Martinez           Connie Chen
+ * CL38755                  CJM4686                     CMC5837
+ * thegoldflute@gmail.com   criscubed@gmail.com         conniem09@gmail.com
+ * 52075                    52080                       52105
+ */
+
 #include "filesys/directory.h"
-
-
 
 /* A single directory entry. */
 struct dir_entry 
   {
     block_sector_t inode_sector;        /* Sector number of header. */
-    char name[NAME_MAX + 1];            /* Null terminated file name. */
-    //Should we change ^^ above to char *name, and use name = malloc (size of namestring.length)
-    //so that, no matter how long name is, it would take up same amount of space on disk and memory? 
-    
-    
+    char name[NAME_MAX + 1];            /* Null terminated file name. */    
     bool in_use;                        /* In use or free? */
   };
 
@@ -19,14 +21,16 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt, block_sector_t parent)
 {
+  //<Cris>
   bool success;
   success = inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
     
-  struct inode *this_inode = inode_open(sector);
-  struct dir *this_dir = dir_open(this_inode);
-  dir_add (this_dir, ".", sector); //add ourselves to the directory
-  dir_add (this_dir, "..", parent); //add our parent to the directory
-  dir_close(this_dir);
+  struct inode *this_inode = inode_open (sector);
+  struct dir *this_dir = dir_open (this_inode);
+  dir_add (this_dir, ".", sector);    //add ourselves to the directory
+  dir_add (this_dir, "..", parent);   //add our parent to the directory
+  dir_close (this_dir);
+  //</Cris>
   return success;
 }
 
@@ -37,17 +41,17 @@ dir_open (struct inode *inode)
 {
   struct dir *dir = calloc (1, sizeof *dir);
   if (inode != NULL && dir != NULL)
-    {
-      dir->inode = inode;
-      dir->pos = 0;
-      return dir;
-    }
+  {
+    dir->inode = inode;
+    dir->pos = 0;
+    return dir;
+  }
   else
-    {
-      inode_close (inode);
-      free (dir);
-      return NULL; 
-    }
+  {
+    inode_close (inode);
+    free (dir);
+    return NULL; 
+  }
 }
 
 /* Opens the root directory and returns a directory for it.
@@ -71,10 +75,10 @@ void
 dir_close (struct dir *dir) 
 {
   if (dir != NULL)
-    {
-      inode_close (dir->inode);
-      free (dir);
-    }
+  {
+    inode_close (dir->inode);
+    free (dir);
+  }
 }
 
 /* Returns the inode encapsulated by DIR. */
@@ -123,15 +127,12 @@ dir_lookup (const struct dir *dir, const char *name,
             struct inode **inode) 
 {
   struct dir_entry e;
-
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
-
   return *inode != NULL;
 }
 
@@ -212,22 +213,22 @@ dir_remove (struct dir *dir, const char *name)
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
     goto done;
 
+  //<Chiahua>
   if (inode->data.is_dir)
   {
     char buf[NAME_MAX + 1];
-    struct dir *toBeRemoved = dir_open(inode);
+    struct dir *toBeRemoved = dir_open (inode);
     bool temp = dir_readdir (toBeRemoved, buf);
     if (temp)
     {
        return false;
     } 
-    dir_close(toBeRemoved);
+    dir_close (toBeRemoved);
   }
+  //</Chiahua>
   
   inode_remove (inode);
   success = true;
-  
-
 
  done:
   inode_close (inode);
@@ -241,31 +242,30 @@ bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
-
+  
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
+  {
+    dir->pos += sizeof e;
+    //<Cris>
+    if (e.in_use && (strcmp (e.name, ".") && strcmp (e.name, "..")))
     {
-      dir->pos += sizeof e;
-      if (e.in_use && (strcmp(e.name, ".") && strcmp(e.name, "..")))
-        {
-          strlcpy (name, e.name, NAME_MAX + 1);
-          return true;
-        } 
-    }
+      strlcpy (name, e.name, NAME_MAX + 1);
+      return true;
+    } 
+    //</Cris>
+  }
   return false;
 }
 
-
-
 /*
-We can write a method that counts the number of steps in a path. 
-We can then write another method that takes 1 step. 
-Each of these two methods would make a copy of the path, then strtok it.
-
+Counts number of tokens in a path
 */
-
-int path_tokens (char* name) {
-	char *path = (char*) malloc (strlen(name)+1);
-	strlcpy (path, name, strlen(name)+1);
+//<Chiahua>
+int 
+path_tokens (char* name) 
+{
+	char *path = (char*) malloc (strlen (name) + 1);
+	strlcpy (path, name, strlen (name) + 1);
 	char *token;
   char *save_ptr;
   int num_tokens = 0;
@@ -275,57 +275,64 @@ int path_tokens (char* name) {
   {
     num_tokens++;
   }
-  free(path);
+  free (path);
   return num_tokens;
 }
+//</Chiahua>
 
+/*
+ Navigates to location in file system specified by a given path. 
+ If ingore_last is true, it will navigate to the 2nd to last item in path.
+*/
+//<Chiahua>
 struct inode *
-dir_traversal(char *name, bool ignore_last)
+dir_traversal (char *name, bool ignore_last)
 {
-	//printf("Path: %s\n", name);
   struct dir *temp_dir = NULL;
   struct inode *inode = NULL;
   struct dir *dir = NULL;
-  char *path = (char*) malloc (strlen(name)+1);
-  strlcpy (path, name, strlen(name)+1);
-  bool absolute = (*name == '/' || thread_current()->pwd == NULL);
+  char *path = (char*) malloc (strlen (name) + 1);
+  strlcpy (path, name, strlen (name) + 1);
+  bool absolute = (*name == '/' || thread_current ()->pwd == NULL);
   char *token;
   char *save_ptr;
-  int num_tokens = path_tokens(name) + !ignore_last;
+  int num_tokens = path_tokens (name) + !ignore_last;
   
-	if (absolute){
+	if (absolute)
+  {
 		//if the path is absolute, start from root
 		dir = dir_open_root ();
-	} else {
+	} else 
+  {
 		//if the path is relative, start from pwd
-		dir = dir_reopen(thread_current ()->pwd);
+		dir = dir_reopen (thread_current ()->pwd);
 	}
-
   inode = dir->inode;
-  if(inode->removed){
+  if(inode->removed)
+  {
 	  return NULL;
   }
   //make sure the dir isnt NULL
   if (dir != NULL)
   {
     //iterate through each subdirectory
-    for(token = strtok_r (path, "/", &save_ptr); token != NULL && num_tokens >1; 
-        token = strtok_r (NULL, "/", &save_ptr))
+    for (token = strtok_r (path, "/", &save_ptr); 
+         token != NULL && num_tokens > 1; 
+         token = strtok_r (NULL, "/", &save_ptr))
     {
-		//printf("Token %s\n", token);
       num_tokens--;
       //look to see if the directory exists
-      
       dir_lookup (dir, token, &inode);
       //check if the next token is a directory or a file
-      if(inode != NULL)
+      //<Cris>
+      if (inode != NULL)
       {
-        if(inode->data.is_dir)
+        if (inode->data.is_dir)
         {
           //is a dir
           temp_dir = dir;
-          dir = dir_open(inode);
-          dir_close(temp_dir);
+          dir = dir_open (inode);
+          dir_close (temp_dir);
         }
         else
         {
@@ -333,37 +340,48 @@ dir_traversal(char *name, bool ignore_last)
           break;
         }
       }
+      //</Cris>
     }
-    inode = inode_reopen(inode);
-    dir_close(dir);
-
+    inode = inode_reopen (inode);
+    dir_close (dir);
   }
   return inode;
 }
+//</Chiahua>
 
+/*
+Takes a path name and returns the last item
+*/
+//<Chiahua>
 char *
 dir_token_last (char * path)
 {
-  char last[strlen(path)+1];
-	strlcpy (&last, path, strlen(path)+1);
+  char last[strlen (path) + 1];
+	strlcpy (&last, path, strlen (path) + 1);
   char *token = NULL;
   char *save_ptr= NULL;
   char *prev = NULL;
   
-  if(strlen(path) == 0){
-    return path;
+  //<Cris>
+  if (strlen (path) == 0)
+  {
+    //<Chiahua>
+    char *result = (char*) malloc (1);
+    *result = '\0';
+    //</Chiahua>
+    return result;
   }
-  for(token = strtok_r (&last, "/", &save_ptr); token != NULL; 
-        token = strtok_r (NULL, "/", &save_ptr))
+  //</Cris>
+  for (token = strtok_r (&last, "/", &save_ptr); token != NULL; 
+       token = strtok_r (NULL, "/", &save_ptr))
   {
     prev = token;
   }
-  char *result = (char*) malloc (strlen(prev)+1);
-	strlcpy (result, prev, strlen(prev)+1);
+  char *result = (char*) malloc (strlen (prev) + 1);
+	strlcpy (result, prev, strlen (prev) + 1);
   return result;
-   
-  
 }
+//</Chiahua>
 
 
 
